@@ -7,13 +7,16 @@ export const state = {
   sampleDur: 0.80,
 
   // Loop / envelope settings
-  loopStart: 0.10,
-  loopEnd:   0.60,
-  decay:     20.0,
+  loopStart: 0.26,
+  loopEnd:   0.46,
+  crossfade: 0.020,
+
+  // Granular sustain
+  grainDur:     0.10,   // seconds per grain
+  grainOverlap: 0.5,    // fraction of grainDur before next grain starts
 
   // Sustain pedal
-  sustain:       false,
-  sustainLocked: false,
+  sustain: false,
 
   // Pitch wheel
   pitchBend: 0,

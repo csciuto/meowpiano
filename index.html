@@ -17,72 +17,92 @@
     <canvas id="waveCanvas" width="300" height="50"></canvas>
     <div class="active-notes" id="activeNotes"></div>
   </div>
-  <div class="piano-wrap">
-    <div class="piano-and-wheel">
-      <div>
-        <div class="octave-bar">C4 &lt;------- C5 -------&gt; C6</div>
-        <div class="keyboard" id="keyboard"></div>
-      </div>
-      <div class="pitch-wheel-wrap">
-        <div class="pitch-wheel-label">PITCH</div>
-        <div class="pitch-wheel-track" id="pitchTrack">
-          <div class="pitch-wheel-notch"></div>
-          <div class="pitch-wheel-thumb" id="pitchThumb"></div>
+  <div class="piano-settings-row">
+    <div class="piano-wrap">
+      <div class="piano-and-wheel">
+        <div>
+          <div class="octave-bar">C4 &lt;------- C5 -------&gt; C6</div>
+          <div class="keyboard" id="keyboard"></div>
         </div>
-        <div class="pitch-wheel-val" id="pitchVal">0</div>
+        <div class="pitch-wheel-wrap">
+          <div class="pitch-wheel-label">PITCH</div>
+          <div class="pitch-wheel-track" id="pitchTrack">
+            <div class="pitch-wheel-notch"></div>
+            <div class="pitch-wheel-thumb" id="pitchThumb"></div>
+          </div>
+          <div class="pitch-wheel-val" id="pitchVal">0</div>
+        </div>
       </div>
     </div>
-  </div>
-  <div class="controls">
-    <button class="btn btn-record" id="btnRecord">&#x23FA; REC</button>
-    <button class="btn btn-play"   id="btnPlay" disabled>&#x25B6; PLAY</button>
-    <button class="btn btn-loop"   id="btnLoop" disabled>&#x21BA; LOOP</button>
-    <div style="position:relative;display:inline-flex;border:2px solid #44DDFF;border-radius:8px;overflow:hidden;cursor:pointer">
-      <button id="btnSustain"     style="font-family:'Press Start 2P',monospace;font-size:8px;padding:10px 10px 10px 14px;background:transparent;border:none;color:#44DDFF;cursor:pointer;letter-spacing:1px">SUSTAIN</button>
-      <button id="btnSustainLock" style="font-family:'Press Start 2P',monospace;font-size:7px;padding:10px 10px;background:rgba(68,221,255,0.08);border:none;border-left:2px solid #44DDFF;color:#44DDFF;cursor:pointer;opacity:0.5" title="Lock sustain">&#x1F512;</button>
-    </div>
-    <button class="btn btn-stop"  id="btnStop">&#x25A0; STOP</button>
-    <button class="btn btn-clear" id="btnClear">&#x2715; CLR</button>
-  </div>
-  <div class="status" id="status">loading meow...</div>
-  <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
-    <button class="btn" id="btnLoopEdit" style="color:#AA88FF;border-color:#AA88FF;font-size:7px">&#x25BC; SETTINGS</button>
-    <div id="loopPanel" style="display:none;flex-direction:column;align-items:center;gap:10px;width:100%;max-width:420px">
-      <div style="display:flex;align-items:center;gap:12px">
+    <!-- Tab button sits at keyboard level, between the piano box and the settings panel -->
+    <button id="btnLoopEdit" class="settings-tab">&#x25B6;</button>
+    <!-- Settings panel: hidden by default, opens to the right of the tab -->
+    <div id="loopPanel" class="settings-panel" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span style="font-size:7px;color:#7060A0;letter-spacing:1px">OCTAVE</span>
         <div style="display:flex;gap:4px" id="octaveBtns">
           <button class="btn" id="oct-2" style="font-size:7px;padding:6px 8px;color:#AA88FF;border-color:#AA88FF">-2</button>
           <button class="btn" id="oct-1" style="font-size:7px;padding:6px 8px;color:#AA88FF;border-color:#AA88FF">-1</button>
           <button class="btn" id="oct0"  style="font-size:7px;padding:6px 8px;color:#080B14;border-color:#AA88FF;background:#AA88FF">0</button>
+          <button class="btn" id="oct1"  style="font-size:7px;padding:6px 8px;color:#AA88FF;border-color:#AA88FF">+1</button>
+          <button class="btn" id="oct2"  style="font-size:7px;padding:6px 8px;color:#AA88FF;border-color:#AA88FF">+2</button>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;width:100%;max-width:360px">
-        <span style="font-size:7px;color:#7060A0;width:60px;text-align:right;letter-spacing:1px">DECAY</span>
-        <input type="range" id="decaySlider" min="1" max="30" step="0.5" value="20.0" style="flex:1;accent-color:#FF2D78">
-        <span style="font-size:7px;color:#FF7BAC;width:36px" id="decayLbl">20.0s</span>
-      </div>
-      <div style="font-size:7px;color:#6A5A8A;letter-spacing:1px">DRAG HANDLES TO SET LOOP IN / OUT</div>
-      <div id="sliderTrack" style="position:relative;width:360px;height:28px;cursor:pointer">
-        <div style="position:absolute;top:12px;left:0;right:0;height:4px;background:#2A1F44;border-radius:2px"></div>
-        <div id="sliderFill" style="position:absolute;top:12px;height:4px;background:#FF2D78;border-radius:2px"></div>
-        <div id="handleStart" style="position:absolute;top:2px;width:24px;height:24px;background:#FF2D78;border-radius:50%;cursor:grab;transform:translateX(-50%);box-shadow:0 0 8px rgba(255,45,120,0.8);display:flex;align-items:center;justify-content:center">
-          <span style="font-size:5px;color:#fff;pointer-events:none">IN</span>
-        </div>
-        <div id="handleEnd" style="position:absolute;top:2px;width:24px;height:24px;background:#AA88FF;border-radius:50%;cursor:grab;transform:translateX(-50%);box-shadow:0 0 8px rgba(170,136,255,0.8);display:flex;align-items:center;justify-content:center">
-          <span style="font-size:5px;color:#fff;pointer-events:none">OUT</span>
+      <div style="font-size:6px;color:#6A5A8A;letter-spacing:1px">LOOP IN / OUT</div>
+      <canvas id="loopCanvas" width="240" height="48"></canvas>
+      <div style="padding:0 14px">
+        <div id="sliderTrack" style="position:relative;width:100%;height:28px;cursor:pointer">
+          <div style="position:absolute;top:12px;left:0;right:0;height:4px;background:#2A1F44;border-radius:2px"></div>
+          <div id="sliderFill" style="position:absolute;top:12px;height:4px;background:#FF2D78;border-radius:2px"></div>
+          <div id="handleStart" style="position:absolute;top:2px;width:24px;height:24px;background:#FF2D78;border-radius:50%;cursor:grab;transform:translateX(-50%);box-shadow:0 0 8px rgba(255,45,120,0.8);display:flex;align-items:center;justify-content:center">
+            <span style="font-size:5px;color:#fff;pointer-events:none">IN</span>
+          </div>
+          <div id="handleEnd" style="position:absolute;top:2px;width:24px;height:24px;background:#AA88FF;border-radius:50%;cursor:grab;transform:translateX(-50%);box-shadow:0 0 8px rgba(170,136,255,0.8);display:flex;align-items:center;justify-content:center">
+            <span style="font-size:5px;color:#fff;pointer-events:none">OUT</span>
+          </div>
         </div>
       </div>
-      <div style="display:flex;gap:20px">
-        <span style="font-size:7px;color:#FF7BAC">IN: <span id="lblStart">0.10</span>s</span>
-        <span style="font-size:7px;color:#BB99FF">OUT: <span id="lblEnd">0.60</span>s</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:7px;color:#7060A0;letter-spacing:1px;white-space:nowrap">XFADE</span>
+        <input type="range" id="crossfadeSlider" min="0" max="0.1" step="0.005" value="0.02"
+               style="flex:1;accent-color:#AA88FF;min-width:0">
+        <span style="font-size:7px;color:#BB99FF;width:36px;text-align:right" id="crossfadeLbl">20ms</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:7px;color:#7060A0;letter-spacing:1px;white-space:nowrap">GRAIN</span>
+        <input type="range" id="grainSlider" min="0.02" max="0.2" step="0.01" value="0.1"
+               style="flex:1;accent-color:#44DDFF;min-width:0">
+        <span style="font-size:7px;color:#44DDFF;width:36px;text-align:right" id="grainLbl">100ms</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:7px;color:#7060A0;letter-spacing:1px;white-space:nowrap">SCATTER</span>
+        <input type="range" id="scatterSlider" min="0" max="0.8" step="0.05" value="0.5"
+               style="flex:1;accent-color:#AA88FF;min-width:0">
+        <span style="font-size:7px;color:#BB99FF;width:36px;text-align:right" id="scatterLbl">50%</span>
+      </div>
+      <div style="display:flex;gap:12px;justify-content:center;align-items:center">
+        <span style="font-size:7px;color:#FF7BAC">IN: <span id="lblStart">0.26</span>s</span>
+        <span style="font-size:7px;color:#BB99FF">OUT: <span id="lblEnd">0.46</span>s</span>
+        <button class="btn" id="btnCopyLoop" style="font-size:5px;padding:3px 6px;color:#7060A0;border-color:#7060A0">&#x29C9; COPY</button>
       </div>
     </div>
   </div>
+  <div id="status" class="status"></div>
+  <div class="controls">
+    <button class="btn btn-record" id="btnRecord">&#x23FA; REC</button>
+    <button class="btn btn-play"   id="btnPlay" disabled>&#x25B6; PLAY</button>
+    <button class="btn btn-loop"   id="btnLoop" disabled>&#x21BA; LOOP</button>
+    <button class="btn" id="btnSustain" style="font-size:8px;padding:10px 14px;color:#44DDFF;border-color:#44DDFF;letter-spacing:1px">SUSTAIN</button>
+    <button class="btn btn-stop"  id="btnStop">&#x25A0; STOP</button>
+    <button class="btn btn-clear" id="btnClear">&#x2715; CLR</button>
+  </div>
   <div class="key-guide">
     WHITE: <span>A S D F G H J K L ; ' Z X C V</span><br>
-    BLACK: <span>W E &nbsp; T Y U &nbsp; O P &nbsp; [ ] \</span>
+    BLACK: <span>W E &nbsp; T Y U &nbsp; O P &nbsp; [ ] \</span><br>
+    <span>SPACE</span> = SUSTAIN &nbsp;&nbsp; <span>ENTER</span> = REC
   </div>
 </div>
+<div class="version-label"></div>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>

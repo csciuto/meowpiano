@@ -10,7 +10,10 @@ import {
   initSettings,
   initPitchWheel,
   initTransport,
+  updateSustainUI,
 } from './controls.js';
+
+document.querySelector('.version-label').textContent = 'v1.0';
 
 // ── Display helpers ───────────────────────────────────────────────────
 
@@ -59,14 +62,14 @@ function off(n) {
 document.addEventListener('keydown', e => {
   if (e.repeat) return;
   if (e.key === ' ') {
-    if (state.sustainLocked) { state.sustainLocked = false; setSustain(false); }
-    else setSustain(true);
+    setSustain(true);
+    updateSustainUI();
     e.preventDefault();
     return;
   }
   if (e.key === 'Enter') {
-    document.getElementById('btnRecord').click();
     e.preventDefault();
+    document.getElementById('btnRecord').click();
     return;
   }
   const n = keyMap[e.key.toLowerCase()];
@@ -75,7 +78,8 @@ document.addEventListener('keydown', e => {
 
 document.addEventListener('keyup', e => {
   if (e.key === ' ') {
-    if (!state.sustainLocked) setSustain(false);
+    setSustain(false);
+    updateSustainUI();
     return;
   }
   const n = keyMap[e.key.toLowerCase()];

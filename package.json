@@ -2,9 +2,12 @@
   "name": "meowpiano",
   "type": "module",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run tests/",
+    "test:e2e": "playwright test",
+    "screenshot": "UPDATE_PREVIEW=1 playwright test e2e/smoke.spec.js"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "vitest": "^2.0.0"
   }
 }

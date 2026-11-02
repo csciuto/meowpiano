@@ -4,7 +4,7 @@ A browser-based piano that plays real meow samples (from Silas, a real cat). Eac
 
 ## Live demo
 
-[csciuto.github.io/meowpiano](https://csciuto.github.io/meowpiano)
+[corey.sciu.to/meowpiano](https://corey.sciu.to/meowpiano/)
 
 ## How it sounds
 
@@ -151,3 +151,7 @@ meowpiano/
 ## Deploying
 
 The repo is served directly by GitHub Pages from the `main` branch root. Pushing to `main` deploys automatically — there is no build step.
+
+## Preview image
+
+`npm run screenshot` runs the Playwright smoke test and refreshes `preview.png`, used for link previews. `npm run test:e2e` runs the browser tests.

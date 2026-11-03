@@ -1,0 +1,14 @@
+The audio files in this directory are not covered by the MIT license that applies
+to the rest of this repository.
+
+meow.ogg
+  "My cat Silas meowing" by Dan Crosby (Dcrosby on English Wikipedia)
+  Source: https://commons.wikimedia.org/wiki/File:Meow.ogg
+  License: Creative Commons Attribution-ShareAlike 3.0 Unported
+           https://creativecommons.org/licenses/by-sa/3.0/
+  Unmodified.
+
+notes/*.ogg
+  Pitch-shifted, loop-processed adaptations of meow.ogg made with
+  scripts/process_samples.py. Licensed under the same terms:
+  CC BY-SA 3.0, https://creativecommons.org/licenses/by-sa/3.0/

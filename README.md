@@ -1,6 +1,6 @@
 # Meow Piano
 
-A browser-based piano that plays real meow samples (from Silas, a real cat). Each key plays the actual recording, pitch-shifted to the correct note. Holding a key (or the sustain pedal) triggers a granular synthesis engine that keeps the "EO" vowel of the meow alive indefinitely — no looping seam, no oscillators. Built with vanilla JS and the Web Audio API. Deployed to GitHub Pages — no build step required.
+A browser-based piano that plays real meow samples (from Silas, a real cat; see [Credits](#credits)). Each key plays the actual recording, pitch-shifted to the correct note. Holding a key (or the sustain pedal) triggers a granular synthesis engine that keeps the "EO" vowel of the meow alive indefinitely — no looping seam, no oscillators. Built with vanilla JS and the Web Audio API. Deployed to GitHub Pages — no build step required.
 
 ## Live demo
 
@@ -122,7 +122,7 @@ npm install
 npm test
 ```
 
-Tests run in Node — no browser required. The audio layer (`audio.js`) is not tested because it depends on the Web Audio API.
+Unit tests run in Node, no browser required. The audio layer (`audio.js`) is covered by the Playwright tests in `e2e/` (`npm run test:e2e`), which check note and sustain-pedal behavior in a real browser.
 
 ## Project structure
 
@@ -150,7 +150,7 @@ meowpiano/
 
 ## Deploying
 
-The repo is served directly by GitHub Pages from the `main` branch root. Pushing to `main` deploys automatically — there is no build step.
+Pushing to `main` deploys to GitHub Pages through `.github/workflows/deploy.yml`. There is no build step; the workflow only stamps the version number (see below).
 
 ## Preview image
 
@@ -159,3 +159,11 @@ The repo is served directly by GitHub Pages from the `main` branch root. Pushing
 ## Versioning
 
 Pushing to `main` deploys through `.github/workflows/deploy.yml`, which stamps `v1.<commit count>` into the version label in the corner. Locally the label reads `dev`.
+
+## Credits
+
+The meow is [“My cat Silas meowing”](https://commons.wikimedia.org/wiki/File:Meow.ogg) by Dan Crosby ([Dcrosby](https://en.wikipedia.org/wiki/User:Dcrosby) on English Wikipedia), from Wikimedia Commons, licensed under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). `sounds/meow.ogg` is the unmodified file. The notes in `sounds/notes/` are pitch-shifted and loop-processed versions of it, released under the same license.
+
+## License
+
+The code is MIT licensed (see [LICENSE](LICENSE)). The audio in `sounds/` is not covered by the MIT license; it is CC BY-SA 3.0, as described in [Credits](#credits) and [sounds/LICENSE](sounds/LICENSE).

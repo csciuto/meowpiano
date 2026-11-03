@@ -187,3 +187,6 @@ body::before {
     max-width: 480px;
   }
 }
+
+.credit { font-size: 8px; line-height: 1.8; color: #6A5A8A; margin-top: 16px; text-align: center; letter-spacing: 1px; }
+.credit a { color: #8A7AAA; }

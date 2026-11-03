@@ -73,7 +73,7 @@ function startGranular(buf, rateRef, ls, le) {
 
 // noteName  — e.g. "C#4"
 // freq      — desired playback frequency
-// useSustain — true: M→granular EO (holds until cutVoice); false: recording plays once
+// useSustain — true: M→granular EO (holds until released); false: recording plays once
 export function createVoice(noteName, freq, useSustain, ls, le) {
   const bend = Math.pow(2, state.pitchBend / 12);
   const rate = (freq / BASE_FREQS[noteName]) * bend;
@@ -94,14 +94,14 @@ export function createVoice(noteName, freq, useSustain, ls, le) {
     src.connect(attackGain);
     attackGain.connect(masterGain);
 
-    // EO: granular fades in as attack fades out; holds until cutVoice is called
+    // EO: granular fades in as attack fades out; holds until released
     const rateRef  = { value: rate };
     const granular = startGranular(noteBufs[noteName], rateRef, ls, le);
     granular.gainNode.gain.setValueAtTime(0, t0 + ls);
     granular.gainNode.gain.linearRampToValueAtTime(1.0, xEnd);
 
     src.start();
-    return { src, granular, freq, noteName, gain: granular.gainNode };
+    return { src, granular, freq, noteName, gain: granular.gainNode, attackGain, t0, ls };
   } else {
     // No sustain: recording plays once in full
     const gain = actx.createGain();
@@ -115,13 +115,33 @@ export function createVoice(noteName, freq, useSustain, ls, le) {
 
 // ── Shared key-up / pedal-release helper ──────────────────────────────
 
-function cutVoice(v, noteName) {
+// Release a voice the way a piano damper would. Released before the loop
+// region starts, the meow just plays out once in full (a quick tap sounds
+// like the whole recording). Released later, the granular hold fades and the
+// "W" tail plays.
+function releaseVoice(v, noteName, voices) {
+  if (!v.granular) return;
+  const t = actx.currentTime;
+  if (t < v.t0 + v.ls) {
+    v.granular.stop();
+    if (voices[noteName] === v) delete voices[noteName];
+    v.gain.gain.cancelScheduledValues(t);
+    v.gain.gain.setValueAtTime(0, t);
+    v.attackGain.gain.cancelScheduledValues(t);
+    v.attackGain.gain.setValueAtTime(1.0, t);
+    if (v.onEnd) v.src.onended = v.onEnd;
+    return;
+  }
+  cutVoice(v, noteName, voices);
+}
+
+function cutVoice(v, noteName, voices = state.liveVoices) {
   if (!v.granular) return;           // non-sustain voice, nothing to cut
   const t = actx.currentTime;
   v.granular.stop();                 // stop scheduling new grains
 
   // Remove immediately so a subsequent noteOff can't double-cut
-  if (state.liveVoices[noteName] === v) delete state.liveVoices[noteName];
+  if (voices[noteName] === v) delete voices[noteName];
 
   // Anchor current computed gain value then ramp to silence
   v.gain.gain.cancelScheduledValues(t);
@@ -148,33 +168,30 @@ export function noteOn(n, onEnd) {
     if (old.granular) old.granular.stop();
     delete state.liveVoices[n.note];
   }
-  const v = createVoice(n.note, n.freq, state.sustain, state.loopStart, state.loopEnd);
+  // Like a piano: the note holds while the key is down, and the pedal keeps it
+  // going after the key comes up (including notes already held when the pedal
+  // goes down). Cleanup happens in releaseVoice / cutVoice.
+  const v = createVoice(n.note, n.freq, true, state.loopStart, state.loopEnd);
   v.onEnd = onEnd;
   state.liveVoices[n.note] = v;
   if (n.el) n.el.classList.add('pressed');
-
-  if (!v.granular) {
-    // Non-sustain: cleanup when recording finishes
-    v.src.onended = () => {
-      if (state.liveVoices[n.note]?.src === v.src) {
-        delete state.liveVoices[n.note];
-        if (n.el) n.el.classList.remove('pressed');
-        if (onEnd) onEnd();
-      }
-    };
-  }
-  // Granular voices: cleanup happens via cutVoice → tail.onended
 }
 
 export function noteOff(n) {
   const v = state.liveVoices[n.note];
-  if (v && !state.sustain) cutVoice(v, n.note);
+  if (v) {
+    if (state.sustain) v.keyUp = true;
+    else releaseVoice(v, n.note, state.liveVoices);
+  }
   if (n.el) n.el.classList.remove('pressed');
 }
 
+// Pedal up releases notes whose keys are already up; held keys keep sounding.
 export function applySustainToLiveVoices(on) {
   if (on) return;
-  Object.entries(state.liveVoices).forEach(([noteName, v]) => cutVoice(v, noteName));
+  Object.entries(state.liveVoices).forEach(([noteName, v]) => {
+    if (v.keyUp) releaseVoice(v, noteName, state.liveVoices);
+  });
 }
 
 export function applyLoopToLiveVoices() {
@@ -209,25 +226,26 @@ export function pbNoteOn(n, freq, useSustain, ls, le, dec, onEnd) {
     if (old.granular) old.granular.stop();
     delete state.pbVoices[n.note];
   }
-  const v = createVoice(n.note, freq, useSustain, ls, le);
+  const v = createVoice(n.note, freq, true, ls, le);
+  v.onEnd = onEnd;
   state.pbVoices[n.note] = v;
-  if (!v.granular) {
-    v.src.onended = () => {
-      if (state.pbVoices[n.note]?.src === v.src) {
-        delete state.pbVoices[n.note];
-        if (onEnd) onEnd();
-      }
-    };
-  }
-  // Granular pb voices run until stopAllPbVoices
 }
 
-export function pbNoteOff(n, wasSustained) {
-  // No-op: cutVoice / stopAllPbVoices handles granular voices.
+// Playback replays keys and pedal with the same rules as live play.
+export function pbNoteOff(n) {
+  const v = state.pbVoices[n.note];
+  if (!v) return;
+  if (state.pbSustain) v.keyUp = true;
+  else releaseVoice(v, n.note, state.pbVoices);
 }
 
-export function pbSustainOn() {}
-export function pbSustainOff() {}
+export function pbSustainOn() { state.pbSustain = true; }
+export function pbSustainOff() {
+  state.pbSustain = false;
+  Object.entries(state.pbVoices).forEach(([noteName, v]) => {
+    if (v.keyUp) releaseVoice(v, noteName, state.pbVoices);
+  });
+}
 
 export function stopAllPbVoices() {
   Object.values(state.pbVoices).forEach(v => {
@@ -235,6 +253,7 @@ export function stopAllPbVoices() {
     if (v.granular) v.granular.stop();
   });
   state.pbVoices = {};
+  state.pbSustain = false;
 }
 
 // ── Loop preview ──────────────────────────────────────────────────────

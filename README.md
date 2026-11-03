@@ -1,6 +1,6 @@
 # Meow Piano
 
-A browser-based piano that plays real meow samples (from Silas, a real cat). Each key plays the actual recording, pitch-shifted to the correct note. Holding sustain triggers a granular synthesis engine that keeps the "EO" vowel of the meow alive indefinitely — no looping seam, no oscillators. Built with vanilla JS and the Web Audio API. Deployed to GitHub Pages — no build step required.
+A browser-based piano that plays real meow samples (from Silas, a real cat). Each key plays the actual recording, pitch-shifted to the correct note. Holding a key (or the sustain pedal) triggers a granular synthesis engine that keeps the "EO" vowel of the meow alive indefinitely — no looping seam, no oscillators. Built with vanilla JS and the Web Audio API. Deployed to GitHub Pages — no build step required.
 
 ## Live demo
 
@@ -11,10 +11,10 @@ A browser-based piano that plays real meow samples (from Silas, a real cat). Eac
 Every key press plays through three phases, matching the natural shape of a meow:
 
 - **M** — the real recording plays from the start (attack transient, vowel onset)
-- **EO** — when sustain is held, a granular engine takes over: it slices dozens of short overlapping "grains" from the stable vowel region of the recording and scatters their start positions randomly, producing a continuous, natural-sounding hold with no audible loop seam
+- **EO** — while the key or sustain is held, a granular engine takes over: it slices dozens of short overlapping "grains" from the stable vowel region of the recording and scatters their start positions randomly, producing a continuous, natural-sounding hold with no audible loop seam
 - **W** — on key release (or sustain release), the granular engine fades out and the recording tail plays from the loop-out point to the end
 
-Without sustain, the full recording plays once as-is (like a piano key).
+It works like a piano: a note holds as long as you hold its key, and the sustain pedal keeps it going after you let go, including notes you were already holding when you pressed the pedal. Releasing the pedal stops only the notes whose keys are up. A quick tap (released before the loop region) plays the full meow once.
 
 ## Generating audio samples
 
@@ -82,7 +82,7 @@ Then open `http://localhost:8000` (or whichever port your server uses).
 
 | Key | Action |
 |-----|--------|
-| `Space` | Hold for sustain (hold to sustain, release to stop) |
+| `Space` | Sustain pedal (catches held notes and keeps released ones ringing) |
 | `Enter` | Toggle record on/off |
 
 ### Pitch wheel
@@ -98,7 +98,7 @@ Drag the wheel on the right side of the keyboard up or down to bend pitch up to 
 | LOOP | Toggle looped playback |
 | STOP | Stop playback or end recording |
 | CLR | Clear the current recording |
-| SUSTAIN | Hold for sustain while pressed |
+| SUSTAIN | Sustain pedal while pressed |
 
 ### Settings panel
 
@@ -155,3 +155,7 @@ The repo is served directly by GitHub Pages from the `main` branch root. Pushing
 ## Preview image
 
 `npm run screenshot` runs the Playwright smoke test and refreshes `preview.png`, used for link previews. `npm run test:e2e` runs the browser tests.
+
+## Versioning
+
+Pushing to `main` deploys through `.github/workflows/deploy.yml`, which stamps `v1.<commit count>` into the version label in the corner. Locally the label reads `dev`.

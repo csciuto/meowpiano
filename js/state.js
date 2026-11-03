@@ -17,6 +17,7 @@ export const state = {
 
   // Sustain pedal
   sustain: false,
+  pbSustain: false,  // pedal state during recorder playback
 
   // Pitch wheel
   pitchBend: 0,

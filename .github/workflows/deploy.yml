@@ -1,10 +1,11 @@
-name: Deploy to GitHub Pages
+name: Test and deploy
 
-# Every push to main publishes the site with an auto-incremented version
-# (v1.<number of commits>) stamped into the corner label.
+# Every push to main runs the unit tests and the browser tests (desktop and phone,
+# with accessibility checks), then publishes the site stamped v1.<number of commits>.
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -13,11 +14,32 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
   deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -32,6 +54,8 @@ jobs:
           sed -i "s|textContent = 'dev';|textContent = '$VERSION';|" js/main.js
           grep -q "'$VERSION'" js/main.js
           echo "Deploying $VERSION"
+      - name: Leave tests and tooling out of the site
+        run: rm -rf node_modules tests e2e .github package*.json playwright.config.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

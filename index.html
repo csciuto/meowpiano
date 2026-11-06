@@ -17,9 +17,9 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div class="app">
+<main class="app">
   <div>
-    <div class="title">&#x1F431; MEOW PIANO &#x1F431;</div>
+    <h1 class="title">&#x1F431; MEOW PIANO &#x1F431;</h1>
     <div class="subtitle">featuring: silas (real cat, real meows)</div>
   </div>
   <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
@@ -27,7 +27,7 @@
     <div class="active-notes" id="activeNotes"></div>
   </div>
   <div class="piano-settings-row">
-    <div class="piano-wrap">
+    <div class="piano-wrap" tabindex="0" role="region" aria-label="Piano keys">
       <div class="piano-and-wheel">
         <div>
           <div class="octave-bar">C4 &lt;------- C5 -------&gt; C6</div>
@@ -48,7 +48,7 @@
     <!-- Settings panel: hidden by default, opens to the right of the tab -->
     <div id="loopPanel" class="settings-panel" style="display:none">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span style="font-size:7px;color:#7060A0;letter-spacing:1px">OCTAVE</span>
+        <span style="font-size:7px;color:#8173AB;letter-spacing:1px">OCTAVE</span>
         <div style="display:flex;gap:4px" id="octaveBtns">
           <button class="btn" id="oct-2" style="font-size:7px;padding:6px 8px;color:#AA88FF;border-color:#AA88FF">-2</button>
           <button class="btn" id="oct-1" style="font-size:7px;padding:6px 8px;color:#AA88FF;border-color:#AA88FF">-1</button>
@@ -57,7 +57,7 @@
           <button class="btn" id="oct2"  style="font-size:7px;padding:6px 8px;color:#AA88FF;border-color:#AA88FF">+2</button>
         </div>
       </div>
-      <div style="font-size:6px;color:#6A5A8A;letter-spacing:1px">LOOP IN / OUT</div>
+      <div style="font-size:6px;color:#8373A4;letter-spacing:1px">LOOP IN / OUT</div>
       <canvas id="loopCanvas" width="240" height="48"></canvas>
       <div style="padding:0 14px">
         <div id="sliderTrack" style="position:relative;width:100%;height:28px;cursor:pointer">
@@ -72,19 +72,19 @@
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:7px;color:#7060A0;letter-spacing:1px;white-space:nowrap">XFADE</span>
+        <span style="font-size:7px;color:#8173AB;letter-spacing:1px;white-space:nowrap">XFADE</span>
         <input type="range" id="crossfadeSlider" min="0" max="0.1" step="0.005" value="0.02"
                style="flex:1;accent-color:#AA88FF;min-width:0">
         <span style="font-size:7px;color:#BB99FF;width:36px;text-align:right" id="crossfadeLbl">20ms</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:7px;color:#7060A0;letter-spacing:1px;white-space:nowrap">GRAIN</span>
+        <span style="font-size:7px;color:#8173AB;letter-spacing:1px;white-space:nowrap">GRAIN</span>
         <input type="range" id="grainSlider" min="0.02" max="0.2" step="0.01" value="0.1"
                style="flex:1;accent-color:#44DDFF;min-width:0">
         <span style="font-size:7px;color:#44DDFF;width:36px;text-align:right" id="grainLbl">100ms</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:7px;color:#7060A0;letter-spacing:1px;white-space:nowrap">SCATTER</span>
+        <span style="font-size:7px;color:#8173AB;letter-spacing:1px;white-space:nowrap">SCATTER</span>
         <input type="range" id="scatterSlider" min="0" max="0.8" step="0.05" value="0.5"
                style="flex:1;accent-color:#AA88FF;min-width:0">
         <span style="font-size:7px;color:#BB99FF;width:36px;text-align:right" id="scatterLbl">50%</span>
@@ -92,7 +92,7 @@
       <div style="display:flex;gap:12px;justify-content:center;align-items:center">
         <span style="font-size:7px;color:#FF7BAC">IN: <span id="lblStart">0.26</span>s</span>
         <span style="font-size:7px;color:#BB99FF">OUT: <span id="lblEnd">0.46</span>s</span>
-        <button class="btn" id="btnCopyLoop" style="font-size:5px;padding:3px 6px;color:#7060A0;border-color:#7060A0">&#x29C9; COPY</button>
+        <button class="btn" id="btnCopyLoop" style="font-size:5px;padding:3px 6px;color:#8173AB;border-color:#8173AB">&#x29C9; COPY</button>
       </div>
     </div>
   </div>
@@ -112,10 +112,11 @@
   </div>
   <p class="credit">
     Meow: <a href="https://commons.wikimedia.org/wiki/File:Meow.ogg">&ldquo;My cat Silas meowing&rdquo;</a>
-    by Dan Crosby, <a href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a>, pitch-shifted.
+    by Dan Crosby, <a href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a>, pitch-shifted.<br>
+    Questions: corey.sciuto+meow@gmail.com
   </p>
-</div>
-<div class="version-label"></div>
+</main>
+<footer class="version-label"></footer>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>

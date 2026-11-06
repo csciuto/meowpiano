@@ -121,6 +121,7 @@ function initDecorations() {
   ['&#x1F431;','&#x1F638;','&#x1F63A;','&#x1F43E;','&#x1F63B;','&#x1F640;','&#x1F63D;'].forEach(g => {
     const d = document.createElement('div');
     d.className = 'cat-float';
+    d.setAttribute('aria-hidden', 'true');  // decoration
     d.innerHTML = g;
     d.style.cssText =
       `left:${Math.random() * 100}vw;` +

@@ -13,7 +13,6 @@ import {
   updateSustainUI,
 } from './controls.js';
 
-document.querySelector('.version-label').textContent = 'dev';  // stamped as v1.<commit count> by .github/workflows/deploy.yml
 
 // ── Display helpers ───────────────────────────────────────────────────
 

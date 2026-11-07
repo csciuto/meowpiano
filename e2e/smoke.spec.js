@@ -28,3 +28,8 @@ test('contact and a link back to the projects page', async ({ page }) => {
     await expect(page.locator('a[href="https://corey.sciu.to/projects/"]').first()).toBeAttached();
   }
 });
+
+test('footer shows the version', async ({ page }) => {
+  await page.goto(APP);
+  await expect(page.locator('.version')).toHaveText(/^(dev|v1\.\d+)$/);
+});

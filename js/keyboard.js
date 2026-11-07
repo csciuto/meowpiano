@@ -50,7 +50,7 @@ export function initKeyboard(onNoteOn, onNoteOff) {
 
   // ── Touch-glide: container-level handlers ───────────────────────────
   // On touch, pointer capture keeps events on the originating element,
-  // so pointerenter never fires on neighbouring keys. Instead we use
+  // so pointerenter never fires on neighboring keys. Instead we use
   // pointermove + elementFromPoint to detect key changes ourselves.
 
   // pointerId → currently-active note

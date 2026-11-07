@@ -6,6 +6,8 @@ A browser-based piano that plays real meow samples (from Silas, a real cat; see 
 
 [corey.sciu.to/meowpiano](https://corey.sciu.to/meowpiano/)
 
+Built with [Claude Code](https://claude.com/claude-code).
+
 ## How it sounds
 
 Every key press plays through three phases, matching the natural shape of a meow:

@@ -330,8 +330,9 @@ export function initPitchWheel() {
 
 // ── Transport (record / play / pause / seek / open / save / share) ────────
 // A take is kept whole, however long. SAVE writes all of it as a MIDI file (midi.js); OPEN reads one. SHARE puts
-// it in a link (song.js); a take too long for a link gives the link as much as fits: a recording its last part
-// (the warm-up goes, what was just played stays), a file its first. The status says which.
+// it in a link (song.js). A link holds LINK_CAP characters, so how much time fits depends on how busy the music
+// is; a song too long for one keeps its last part in the link (the warm-up goes, the latest stays). The status
+// warns as soon as a song is known not to fit.
 
 const settingsNow = () => ({ loopStart: state.loopStart, loopEnd: state.loopEnd, crossfade: state.crossfade, grainDur: state.grainDur, grainOverlap: state.grainOverlap, tuning: state.tuning });
 const linkBase = () => location.origin + location.pathname + '#song=';
@@ -516,7 +517,7 @@ export function initTransport(onRefresh, onStatus) {
     btnRecord.innerHTML = '&#x23FA; REC';
     const end = performance.now() - state.recStart, raw = state.recEvents;
     if (!raw.some(e => e.type === 'on')) { setTake([], 0, { kind: 'none' }); onStatus('nothing recorded'); return; }
-    const link = await makeLink(raw, end, recSettings, 'last');
+    const link = await makeLink(raw, end, recSettings);
     setTake(raw, end, { kind: 'take', link });
     onStatus('recorded ' + fmtTime(end) + ' · ' + linkNote(link));
   }
@@ -530,23 +531,23 @@ export function initTransport(onRefresh, onStatus) {
   });
 
   // ── links ──
-  async function makeLink(events, end, settings, keep) {
-    const fit = await fitSong(events, end, { ...settings, title: take.title || undefined }, linkRoom(), keep);
-    return { text: fit.text, cut: fit.cut, keep, len: fit.end };
+  async function makeLink(events, end, settings) {
+    const fit = await fitSong(events, end, { ...settings, title: take.title || undefined }, linkRoom(), 'last');
+    return { text: fit.text, cut: fit.cut, len: fit.end };
   }
-  const linkNote = l => l.cut ? 'LINK · ' + (l.keep === 'last' ? 'LAST ' : 'FIRST ') + fmtTime(l.len)
+  const linkNote = l => l.cut ? 'LINK: LAST ' + fmtTime(l.len)
     : 'LINK ' + Math.round(100 * (linkBase().length + l.text.length) / LINK_CAP) + '%';
 
   btnShare.addEventListener('click', async () => {
     if (!state.recEvents.length) return;
-    if (!take.link) take.link = await makeLink(state.recEvents, state.recEnd, settingsNow(), take.kind === 'take' ? 'last' : 'first');
+    if (!take.link) take.link = await makeLink(state.recEvents, state.recEnd, settingsNow());
     const l = take.link, url = linkBase() + l.text;
     history.replaceState(null, '', url);
     let copied = false;
     try { await navigator.clipboard.writeText(url); copied = true; } catch (_) {}
-    const part = l.cut ? ' · ' + (l.keep === 'last' ? 'last ' : 'first ') + fmtTime(l.len) + ' of ' + fmtTime(state.recEnd) : '';
+    const part = l.cut ? ' · last ' + fmtTime(l.len) + ' of ' + fmtTime(state.recEnd) : '';
     onStatus((copied ? 'link copied' : 'link in the address bar') + part + ' · ' + url.length.toLocaleString('en-US') + ' chars');
-    popup('shareToast', (copied ? 'LINK COPIED!' : 'LINK IN ADDRESS BAR') + (l.cut ? ' · ' + (l.keep === 'last' ? 'LAST ' : 'FIRST ') + fmtTime(l.len) : ''), l.cut ? 4000 : 2600);
+    popup('shareToast', (copied ? 'LINK COPIED!' : 'LINK IN ADDRESS BAR') + (l.cut ? ' · LAST ' + fmtTime(l.len) : ''), l.cut ? 4000 : 2600);
   });
 
   // ── files ──
@@ -610,7 +611,16 @@ export function initTransport(onRefresh, onStatus) {
     setTake(events, end, { kind: 'file', title: take.kind === 'file' ? take.title : (midiFile.title || fileName) });
     if (location.hash) history.replaceState(null, '', location.pathname);
     const notes = events.filter(e => e.type === 'on').length;
-    onStatus((take.title || fileName) + ' · ' + fmtTime(end) + ' · ' + notes.toLocaleString('en-US') + ' notes' + (notes ? ' · press PLAY' : ''));
+    const line = (take.title || fileName) + ' · ' + fmtTime(end) + ' · ' + notes.toLocaleString('en-US') + ' notes';
+    onStatus(line + (notes ? ' · press PLAY' : ''));
+    // too long for one link? say so now, not at SHARE
+    if (!notes) return;
+    const mine = take;
+    makeLink(events, end, settingsNow()).then(l => {
+      if (take !== mine || mine.link) return;
+      mine.link = l;
+      if (l.cut && !state.isPlay) onStatus(line + ' · ' + linkNote(l));
+    });
   }
 
   // ── buttons ──

@@ -51,7 +51,7 @@ test('SAVE writes a MIDI file that opens to the same notes and settings @desktop
   expect(events.filter(e => e.type === 'on').map(e => e.note)).toEqual(['C4', 'A4']);
 });
 
-test('a link from an opened file; a file too long for a link keeps its first part @desktop', async ({ page, context }) => {
+test('a link from an opened file; a file too long for a link warns and keeps its last part @desktop', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await open(page);
   await page.locator('#btnShare').click();
@@ -79,12 +79,12 @@ test('a link from an opened file; a file too long for a link keeps its first par
     return Array.from(toMidi(ev, 20 * 60000, { loopStart: 0.26, loopEnd: 0.46, crossfade: 0.02, grainDur: 0.1, grainOverlap: 0.5, tuning: 440 }));
   });
   await page.setInputFiles('#midiFile', { name: 'long.mid', mimeType: 'audio/midi', buffer: Buffer.from(long) });
-  await expect(page.locator('#status')).toHaveText(/long · 20:00 · 9,600 notes/);
+  await expect(page.locator('#status')).toHaveText(/^long · 20:00 · 9,600 notes · LINK: LAST \d+:\d\d$/, { timeout: 15000 });
   await expect(page.locator('#parts')).toBeHidden();   // one instrument: nothing to choose
   expect(page.url()).not.toContain('#song=');
   await page.locator('#btnShare').click();
-  await expect(page.locator('#status')).toHaveText(/link copied · first \d+:\d\d of 20:00/, { timeout: 15000 });
-  await expect(page.locator('#shareToast')).toHaveText(/LINK COPIED! · FIRST \d+:\d\d/);
+  await expect(page.locator('#status')).toHaveText(/link copied · last \d+:\d\d of 20:00/, { timeout: 15000 });
+  await expect(page.locator('#shareToast')).toHaveText(/LINK COPIED! · LAST \d+:\d\d/);
   expect(page.url().length).toBeLessThanOrEqual(8000);
 });
 

@@ -120,7 +120,8 @@ link loads the song ready to play. During playback the keys light up green at th
 Links stop at 8,000 characters, the most that chat apps and servers reliably pass along. That's about five
 minutes of expressive playing (`tests/song.test.js` checks a five-minute piece of ~1,700 notes, a pedal change
 every bar and a bend every other bar). While recording, the status shows how full the link is; past full it
-keeps recording, and the link keeps the last part (`LINK: LAST PART`). SAVE keeps the whole take. The format is in `js/song.js`:
+keeps recording, and the link keeps the last part (`LINK: LAST PART`). SAVE keeps the whole take.
+How much time fits depends on how busy the playing is: the limit is characters, not minutes. The format is in `js/song.js`:
 note starts in 5 ms steps, held lengths in 10 ms steps, pitch-wheel drags kept to within 4 cents, then
 compressed.
 
@@ -143,9 +144,9 @@ piano's reach (C2–C8), and every note plays at one loudness (velocity is ignor
 **SAVE** writes a one-track `.mid` file: notes, the pedal (CC64) and
 the pitch wheel (pitch bend, ±2 semitones). The loop points, grain settings and tuning go in as text events
 that start `meowpiano`, so a file saved here opens with the same sound; other programs ignore them.
-Recording has no length limit, and SAVE keeps everything. A link holds as much as fits: for a recording, the
-last part (the warm-up goes, what was just played stays); for an opened file, the first. The status says
-which (`LINK · LAST 4:51`). Unchecking instruments makes a song fit. The format is in `js/midi.js`.
+Recording has no length limit, and SAVE keeps everything. A link holds as much as fits, and a song too long for
+one keeps its last part (the warm-up goes, the latest stays). The status warns as soon as it knows: at the
+end of a recording, or when a file opens (`LINK: LAST 4:51`). Unchecking instruments makes a song fit. The format is in `js/midi.js`.
 
 `songs/canon-in-d.mid` is a test and demo file: Pachelbel's Canon in D (public domain), sequenced here by
 `scripts/make-canon.js`. Three violins in canon over the cello's ground, a slowdown at the end, vibrato on

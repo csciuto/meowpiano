@@ -217,3 +217,18 @@ body::before {
 
 .credit { font-size: 8px; line-height: 1.8; color: #8373A4; margin-top: 16px; text-align: center; letter-spacing: 1px; }
 .credit a { color: #8A7AAA; }
+
+/* opening and saving MIDI files */
+.btn-open { color: #44DDFF; border-color: #44DDFF; font-size: 7px; }
+.share-as { display: inline-flex; border: 2px solid #FFE066; border-radius: 8px; padding: 0; margin: 0; overflow: hidden; }
+.share-as label { font-family: "Press Start 2P", monospace; font-size: 7px; color: #FFE066; padding: 9px 9px; cursor: pointer; }
+.share-as input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.share-as label:has(input:checked) { background: #FFE066; color: #080B14; }
+.share-as label:has(input:focus-visible) { outline: 2px solid #fff; outline-offset: -4px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.parts { border: 2px solid #2A1F44; border-radius: 8px; padding: 6px 12px 8px; margin: 0; max-width: min(640px, 92vw); }
+.parts legend { font-family: "Press Start 2P", monospace; font-size: 6px; color: #8173AB; letter-spacing: 1px; padding: 0 6px; }
+#partList { display: flex; flex-wrap: wrap; gap: 6px 14px; justify-content: center; }
+#partList label { font-family: "Press Start 2P", monospace; font-size: 7px; color: #BB99FF; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+#partList input { accent-color: #44FF88; margin: 0; }
+#partList .count { color: #8373A4; }

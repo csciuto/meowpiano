@@ -65,6 +65,9 @@ const OCTAVE_KEYS = { 1: -2, 2: -1, 3: 0, 4: 1, 5: 2 };
 
 document.addEventListener('keydown', e => {
   if (e.repeat) return;
+  // checkboxes and LINK / MIDI keep space and arrows; every other key still plays
+  const choice = e.target.matches && e.target.matches('input[type="checkbox"], input[type="radio"]');
+  if (choice && (e.key === ' ' || e.key.startsWith('Arrow'))) return;
   if (e.key === ' ') {
     setSustain(true);
     updateSustainUI();
@@ -76,7 +79,7 @@ document.addEventListener('keydown', e => {
     document.getElementById('btnRecord').click();
     return;
   }
-  if (e.target.closest && e.target.closest('input')) return;   // sliders keep their own arrow keys
+  if (!choice && e.target.closest && e.target.closest('input')) return;   // sliders keep their own keys
   if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {          // ↑ / ↓: the pitch wheel
     keyBendStart(e.key === 'ArrowUp' ? 1 : -1);
     e.preventDefault();

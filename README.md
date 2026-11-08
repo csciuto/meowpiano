@@ -102,7 +102,9 @@ Drag the wheel on the right side of the keyboard up or down to bend pitch up to 
 | LOOP | Toggle looped playback |
 | STOP | Stop playback or end recording |
 | CLR | Clear the current recording (and its link) |
-| SHARE | Put the recording in the address and copy the link |
+| OPEN | Open a MIDI file (`.mid`) to play |
+| LINK / MIDI | What SHARE makes: a link, or a MIDI file |
+| SHARE / SAVE | Put the recording in the address and copy the link, or save it as a `.mid` file |
 | SUSTAIN | Sustain pedal while pressed |
 
 ### Sharing a recording
@@ -117,6 +119,20 @@ every bar and a bend every other bar). While recording, the status shows how ful
 stops by itself when it's full; for a longer piece, record a second part. The format is in `js/song.js`:
 note starts in 5 ms steps, held lengths in 10 ms steps, pitch-wheel drags kept to within 4 cents, then
 compressed.
+
+### MIDI files
+
+**OPEN** reads a standard MIDI file. Each instrument in it (a track's notes on one channel) gets a checkbox,
+named from the file, with its note count; all are on except drums (channel 10), which are note numbers for
+drum sounds rather than pitches. The checked instruments play as one meow piano: notes fold into the
+piano's reach (C2–C8), and every note plays at one loudness (velocity is ignored).
+
+With **MIDI** chosen, SHARE becomes **SAVE** and writes a one-track `.mid` file: notes, the pedal (CC64) and
+the pitch wheel (pitch bend, ±2 semitones). The loop points, grain settings and tuning go in as text events
+that start `meowpiano`, so a file saved here opens with the same sound; other programs ignore them.
+Recording with MIDI chosen has no length limit. A link made from a long take or file holds as much as fits,
+and the status says how much (`holds the first 4:51 of 12:30`). Unchecking instruments makes a song fit.
+The format is in `js/midi.js`; the choice of LINK or MIDI is remembered in the browser.
 
 ### Settings panel
 

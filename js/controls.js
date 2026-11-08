@@ -12,6 +12,7 @@ import {
 } from './audio.js';
 import { noteMap } from './notes.js';
 import { playable, songText, readSong, fitSong, fmtTime, LINK_CAP } from './song.js';
+import { fromMidi, toMidi } from './midi.js';
 
 // ── Loop waveform canvas ──────────────────────────────────────────────
 
@@ -308,15 +309,18 @@ export function initPitchWheel() {
 }
 
 // ── Transport (record / play / stop / clear / share) ─────────────────
-// A take is kept as it will be shared: when recording stops it goes through the link format (song.js), so
-// what plays here is what a link plays. Recording stops itself before the link would pass LINK_CAP.
+// SHARE makes a link (song.js) or saves a MIDI file (midi.js), chosen with LINK / MIDI. Recording for a link
+// keeps the take as the link holds it, so what plays here is what the link plays, and stops itself before the
+// link would pass LINK_CAP. Recording for MIDI, or opening a MIDI file, has no length limit; a link made from
+// such a take holds as much as fits (the status says how much).
+const shareMode = () => document.querySelector('input[name="shareAs"]:checked')?.value || 'link';
 
 const settingsNow = () => ({ loopStart: state.loopStart, loopEnd: state.loopEnd, crossfade: state.crossfade, grainDur: state.grainDur, grainOverlap: state.grainOverlap, tuning: state.tuning });
 const linkBase = () => location.origin + location.pathname + '#song=';
 const linkRoom = () => LINK_CAP - linkBase().length;
 const FULL_MARGIN = 250;   // characters: stop a little early, a second of dense playing fits in this
 
-let _status = () => {}, _setReady = () => {};
+let _status = () => {}, _setReady = () => {}, _forgetFile = () => {};
 const toastTimers = {};
 function popup(id, text, ms) {
   const el = document.getElementById(id);
@@ -334,6 +338,7 @@ export async function loadSongFromLink() {
     const song = await readSong(m[1]);
     applySettings(song.settings);
     state.recEvents = song.events; state.recEnd = song.end; state.songText = m[1];
+    _forgetFile();
     _setReady(true);
     _status('song loaded · ' + fmtTime(song.end) + ' · press PLAY');
     popup('playToast', 'SONG LOADED · ' + fmtTime(song.end), 5000);
@@ -435,6 +440,8 @@ export function initTransport(onRefresh, onStatus) {
     btnPlay.classList.remove('ready');
     state.recEvents = [];
     state.songText = '';
+    forgetFile();
+    if (location.hash) history.replaceState(null, '', location.pathname);
     state.isRec = true;
     state.recStart = performance.now();
     recSettings = settingsNow();
@@ -449,6 +456,7 @@ export function initTransport(onRefresh, onStatus) {
     watch = setInterval(async () => {
       if (!state.isRec) return;
       const t = performance.now() - state.recStart;
+      if (shareMode() === 'midi') { onStatus('RECORDING ' + fmtTime(t), 'recording'); return; }
       const len = (await songText(state.recEvents, t, recSettings)).length;
       if (!state.isRec) return;
       if (len > linkRoom() - FULL_MARGIN) { finishRec('link full: recorded '); return; }
@@ -465,6 +473,12 @@ export function initTransport(onRefresh, onStatus) {
     btnRecord.innerHTML = '&#x23FA; REC';
     const end = performance.now() - state.recStart, raw = state.recEvents;
     if (!raw.length) { onStatus('nothing recorded'); return; }
+    if (shareMode() === 'midi') {   // no link limit: keep every note as played
+      state.recEvents = raw; state.recEnd = end; state.songText = '';
+      _setReady(true);
+      onStatus(msg + fmtTime(end));
+      return;
+    }
     const fit = await fitSong(raw, end, recSettings, linkRoom());
     const song = await readSong(fit.text);
     state.recEvents = song.events; state.recEnd = song.end; state.songText = fit.text;
@@ -501,6 +515,7 @@ export function initTransport(onRefresh, onStatus) {
     if (state.isPlay || state.isRec) return;
     state.recEvents = [];
     state.songText = '';
+    forgetFile();
     _setReady(false);
     btnPlay.classList.remove('ready');
     state.loop = false;
@@ -510,12 +525,94 @@ export function initTransport(onRefresh, onStatus) {
   });
 
   btnShare.addEventListener('click', async () => {
-    if (!state.songText) return;
+    if (!state.recEvents.length) return;
+    if (shareMode() === 'midi') return saveMidi();
+    // a take made for a link already is one; anything else gets as much as fits
+    if (!state.songText) {
+      const fit = await fitSong(state.recEvents, state.recEnd, settingsNow(), linkRoom());
+      state.songText = fit.text; linkCut = fit.cut ? fit.end : 0;
+    }
+    const cutAt = linkCut;
     const url = linkBase() + state.songText;
     history.replaceState(null, '', url);
     let copied = false;
     try { await navigator.clipboard.writeText(url); copied = true; } catch (_) {}
-    onStatus((copied ? 'link copied' : 'link in the address bar') + ' · ' + url.length.toLocaleString('en-US') + ' chars');
-    popup('shareToast', copied ? 'LINK COPIED!' : 'LINK IN ADDRESS BAR', 2600);
+    const part = cutAt ? ' · holds the first ' + fmtTime(cutAt) + ' of ' + fmtTime(state.recEnd) : '';
+    onStatus((copied ? 'link copied' : 'link in the address bar') + part + ' · ' + url.length.toLocaleString('en-US') + ' chars');
+    popup('shareToast', (copied ? 'LINK COPIED!' : 'LINK IN ADDRESS BAR') + (cutAt ? ' · FIRST ' + fmtTime(cutAt) : ''), cutAt ? 4000 : 2600);
   });
+
+  function saveMidi() {
+    const bytes = toMidi(state.recEvents, state.recEnd, settingsNow());
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([bytes], { type: 'audio/midi' }));
+    a.download = (fileName ? fileName + '-meow' : 'meowpiano-' + new Date().toISOString().slice(0, 16).replace(/[-:]/g, '').replace('T', '-')) + '.mid';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    onStatus('saved ' + a.download);
+    popup('shareToast', 'MIDI SAVED!', 2600);
+  }
+
+  // LINK / MIDI: what SHARE makes
+  const shareLabel = () => {
+    btnShare.innerHTML = shareMode() === 'midi' ? '&#x2913; SAVE' : '&#x2934; SHARE';
+  };
+  document.querySelectorAll('input[name="shareAs"]').forEach(r => r.addEventListener('change', () => {
+    shareLabel();
+    try { localStorage.setItem('meowpiano.shareAs', shareMode()); } catch (_) {}
+  }));
+  try {
+    const saved = localStorage.getItem('meowpiano.shareAs');
+    const r = saved && document.querySelector(`input[name="shareAs"][value="${saved}"]`);
+    if (r) r.checked = true;
+  } catch (_) {}
+  shareLabel();
+
+  // OPEN: a MIDI file becomes the take; with more than one instrument, choose which to play
+  let midiFile = null, fileName = '', linkCut = 0;
+  const parts = document.getElementById('parts'), partList = document.getElementById('partList');
+  const fileInput = document.getElementById('midiFile');
+  function forgetFile() { midiFile = null; fileName = ''; linkCut = 0; parts.hidden = true; partList.textContent = ''; }
+  _forgetFile = forgetFile;
+  document.getElementById('btnOpen').addEventListener('click', () => {
+    if (state.isRec) return;
+    fileInput.value = ''; fileInput.click();
+  });
+  fileInput.addEventListener('change', async () => {
+    const f = fileInput.files[0];
+    if (!f) return;
+    if (state.isPlay) stopPb();
+    let file;
+    try { file = fromMidi(new Uint8Array(await f.arrayBuffer())); } catch (_) { onStatus("couldn't read that MIDI file"); return; }
+    if (!file.parts.length) { onStatus('no notes in that MIDI file'); return; }
+    forgetFile();
+    midiFile = file; fileName = f.name.replace(/\.midi?$/i, '');
+    if (file.settings) applySettings({ ...settingsNow(), ...file.settings });
+    partList.textContent = '';
+    for (const p of file.parts) {
+      const label = document.createElement('label');
+      const box = document.createElement('input');
+      box.type = 'checkbox'; box.value = p.id; box.checked = !p.drums;
+      box.addEventListener('change', () => { if (state.isPlay) stopPb(); useParts(); });
+      const count = document.createElement('span');
+      count.className = 'count'; count.textContent = '· ' + p.notes;
+      label.append(box, p.name + ' ', count);
+      partList.append(label);
+    }
+    parts.hidden = file.parts.length < 2;
+    if (location.hash) history.replaceState(null, '', location.pathname);
+    useParts();
+    popup('playToast', 'SONG LOADED · ' + fmtTime(state.recEnd), 5000);
+    btnPlay.classList.add('ready');
+  });
+  function useParts() {
+    if (!midiFile) return;
+    let ids = [...partList.querySelectorAll('input:checked')].map(b => b.value);
+    if (midiFile.parts.length === 1) ids = [midiFile.parts[0].id];
+    const { events, end } = midiFile.build(ids);
+    state.recEvents = events; state.recEnd = end; state.songText = ''; linkCut = 0;
+    const notes = events.filter(e => e.type === 'on').length;
+    _setReady(notes > 0);
+    onStatus(fileName + ' · ' + fmtTime(end) + ' · ' + notes.toLocaleString('en-US') + ' notes' + (notes ? ' · press PLAY' : ''));
+  }
 }

@@ -12,7 +12,6 @@ test('app loads without errors', async ({ page }) => {
   page.on('pageerror', (e) => errors.push(e.message));
   await page.setViewportSize({ width: 1200, height: 630 });
   await page.goto(APP);
-  await page.waitForLoadState('networkidle');
   await expect(page.locator(READY).first()).toBeVisible();
   expect(errors).toEqual([]);
   if (process.env.UPDATE_PREVIEW) {

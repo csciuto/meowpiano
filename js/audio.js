@@ -182,7 +182,6 @@ export function noteOn(n, onEnd) {
   v.onEnd = onEnd;
   v.fixed = !!n.fixed;   // a MIDI keyboard note: its own pitch, not the app's octave
   state.liveVoices[n.note] = v;
-  if (n.el) n.el.classList.add('pressed');
 }
 
 export function noteOff(n) {
@@ -191,7 +190,6 @@ export function noteOff(n) {
     if (state.sustain) v.keyUp = true;
     else releaseVoice(v, n.note, state.liveVoices);
   }
-  if (n.el) n.el.classList.remove('pressed');
 }
 
 // Pedal up releases notes whose keys are already up; held keys keep sounding.
@@ -237,12 +235,10 @@ export function pbNoteOn(n, freq, useSustain, ls, le, dec, onEnd) {
   const v = createVoice(n.note, freq, true, ls, le);
   v.onEnd = onEnd;
   state.pbVoices[n.note] = v;
-  if (n.el) n.el.classList.add('played');   // playback lights keys green, like a player piano
 }
 
 // Playback replays keys and pedal with the same rules as live play.
 export function pbNoteOff(n) {
-  if (n.el) n.el.classList.remove('played');
   const v = state.pbVoices[n.note];
   if (!v) return;
   if (state.pbSustain) v.keyUp = true;
@@ -264,7 +260,6 @@ export function stopAllPbVoices() {
   });
   state.pbVoices = {};
   state.pbSustain = false;
-  document.querySelectorAll('.key.played').forEach(el => el.classList.remove('played'));
 }
 
 // ── Loop preview ──────────────────────────────────────────────────────

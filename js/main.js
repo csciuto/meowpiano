@@ -16,18 +16,41 @@ import {
   midiBend,
   loadSongFromLink,
   updateSustainUI,
+  onOctaveChange,
 } from './controls.js';
+onOctaveChange(() => refreshDisplay());
 
 
 // ── Display helpers ───────────────────────────────────────────────────
 
+// Keys light by the pitch actually sounding: pink for keys you hold, green for playback. The keyboard shows
+// two octaves; keys held outside them are counted at the edges (◀ 2 / 3 ▶), and the octave buttons move the
+// view. The pills name every pitch sounding, held by a key or the pedal.
+const PITCH = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const midiOf = f => Math.round(69 + 12 * Math.log2(f / 440));
 function refreshDisplay() {
-  const notes = new Set([
-    ...Object.keys(state.liveVoices),
-    ...Object.keys(state.pbVoices),
-  ]);
-  document.getElementById('activeNotes').innerHTML =
-    [...notes].sort().map(n => `<div class="note-pill">${n}</div>`).join('');
+  const low = 60 + 12 * state.octaveShift;
+  const lit = new Map(), sounding = new Set();
+  let below = 0, above = 0;
+  for (const [voices, cls] of [[state.pbVoices, 'played'], [state.liveVoices, 'pressed']]) {
+    for (const v of Object.values(voices)) {
+      if (!v || !v.freq) continue;
+      const m = midiOf(v.freq);
+      sounding.add(m);
+      if (v.keyUp) continue;   // key up, the pedal holding it
+      const i = m - low;
+      if (i < 0) below++; else if (i >= NOTES.length) above++; else lit.set(i, cls);
+    }
+  }
+  NOTES.forEach((n, i) => {
+    if (!n.el) return;
+    n.el.classList.toggle('pressed', lit.get(i) === 'pressed');
+    n.el.classList.toggle('played', lit.get(i) === 'played');
+  });
+  document.getElementById('lowMore').textContent = below ? '\u25C0 ' + below : '';
+  document.getElementById('highMore').textContent = above ? above + ' \u25B6' : '';
+  document.getElementById('activeNotes').innerHTML = [...sounding].sort((a, b) => a - b)
+    .map(m => `<div class="note-pill">${PITCH[m % 12]}${Math.floor(m / 12) - 1}</div>`).join('');
 }
 
 function setStatus(text, cls) {

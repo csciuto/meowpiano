@@ -102,6 +102,10 @@ export function initSustain() {
 
 // ── Octave buttons ────────────────────────────────────────────────────
 
+let _onOctave = () => {};
+/** Called after the octave changes (the keys in view change, so what's lit does too). */
+export function onOctaveChange(f) { _onOctave = f; }
+
 export function setOctave(shift) {
   state.octaveShift = shift;
   if (state.isRec) {
@@ -115,6 +119,7 @@ export function setOctave(shift) {
     btn.style.background = (v === shift) ? '#AA88FF' : 'transparent';
     btn.style.color      = (v === shift) ? '#080B14' : '#AA88FF';
   });
+  _onOctave();
 }
 
 export function initOctaveButtons() {

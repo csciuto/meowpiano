@@ -182,3 +182,18 @@ test('Canon in D opens with its name and plays', async ({ page }) => {
   await page.locator('#btnPlay').click();
   await expect(page.locator('#status')).toHaveText(/^PLAYING Canon in D · 0:0\d \/ 1:51$/);
 });
+
+test('keys light by the pitch sounding; notes out of view are counted, and octave moves the view', async ({ page }) => {
+  await page.setInputFiles('#midiFile', 'songs/canon-in-d.mid');
+  await page.locator('#btnPlay').click();                       // the first 8 s are the bass alone, D2–D3
+  await expect(page.locator('#lowMore')).toHaveText('◀ 1');
+  await expect(page.locator('.key.played')).toHaveCount(0);
+  await expect(page.locator('#activeNotes .note-pill').first()).toHaveText(/^[A-G]#?[23]$/);
+  await page.keyboard.press('1');                               // octave −2: C2–C4 in view
+  await expect(page.locator('#lowMore')).toHaveText('');
+  await expect(page.locator('.key.played')).toHaveCount(1);
+  await page.keyboard.press('3');
+  await expect(page.locator('#lowMore')).toHaveText('◀ 1');
+  await page.locator('#btnStop').click();
+  await expect(page.locator('#lowMore')).toHaveText('');
+});

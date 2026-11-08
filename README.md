@@ -100,7 +100,7 @@ Drag the wheel on the right side of the keyboard up or down to bend pitch up to 
 | REC | Start recording; click again to stop |
 | PLAY / PAUSE | Play the song, or pause it where it is |
 | LOOP | Toggle looped playback |
-| STOP | Stop playback or end recording |
+| STOP | Stop and go back to the start, or end recording |
 | CLR | Clear the current recording (and its link) |
 | ◀◀ 10 / 10 ▶▶ | Back or forward 10 seconds |
 | Seek bar | Drag or click to move anywhere in the song (arrow keys when focused) |

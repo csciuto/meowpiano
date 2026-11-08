@@ -97,6 +97,14 @@ describe('the Canon in D test file (songs/canon-in-d.mid, made by scripts/make-c
     expect(bends.at(-1).bend).toBe(0);
   });
 
+  it("help.html's Hear Canon in D link opens this song", async () => {
+    const { readSong } = await import('../js/song.js');
+    const html = readFileSync(new URL('../help.html', import.meta.url), 'utf8');
+    const song = await readSong(html.match(/#song=([\w-]+)"/)[1]);
+    expect(song.settings.title).toBe('Canon in D');
+    expect(song.events.filter(e => e.type === 'on').length).toBe(588);
+  });
+
   it('every note is in D major, and all of it fits in one link', async () => {
     const pcs = new Set(all.events.filter(e => e.type === 'on').map(e => midiNote(e.freq) % 12));
     expect([...pcs].every(pc => [1, 2, 4, 6, 7, 9, 11].includes(pc))).toBe(true);

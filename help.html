@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to play Meow Piano</title>
+<meta name="description" content="A short guide to Meow Piano: playing, opening and saving MIDI files, recording, naming, sharing links, the sound settings and MIDI keyboards.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  /* The piano's own palette and pixel face for headings and button names; a plain face for reading.
+     Layout: one reading column; each section pairs a few lines with a looping clip. */
+  :root {
+    --bg: #080B14;
+    --surface: #140F24;
+    --border: #2A1F44;
+    --text: #E6E0F5;
+    --dim: #A99BCF;
+    --pink: #FF2D78;
+    --purple: #AA88FF;
+    --cyan: #44DDFF;
+    --green: #44FF88;
+    --yellow: #FFE066;
+    --pixel: "Press Start 2P", ui-monospace, Menlo, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header, main, footer {
+    max-width: 960px; margin: 0 auto;
+    padding-left: max(20px, env(safe-area-inset-left, 0px));
+    padding-right: max(20px, env(safe-area-inset-right, 0px));
+  }
+  header { padding-block: 28px 10px; display: grid; gap: 12px; border-bottom: 1px solid var(--border); }
+  .back { font-size: 14px; color: var(--purple); text-decoration: none; }
+  .back:hover { text-decoration: underline; }
+  h1 { margin: 0; font: 20px/1.4 var(--pixel); color: var(--pink); text-shadow: 0 0 14px rgba(255,45,120,.55); text-wrap: balance; }
+  .lede { margin: 0; color: var(--dim); max-width: 66ch; }
+  .try { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 4px 0 2px; }
+  .try a { font: 10px/1 var(--pixel); text-decoration: none; padding: 12px 14px; border: 2px solid; border-radius: 8px; }
+  .try .hear { color: var(--bg); background: var(--green); border-color: var(--green); box-shadow: 0 0 14px rgba(68,255,136,.5); }
+  .try .get { color: var(--cyan); border-color: var(--cyan); }
+  .try a:hover { filter: brightness(1.15); }
+  nav.toc { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; padding-bottom: 16px; }
+  nav.toc a { color: var(--dim); text-decoration: none; border-bottom: 1px dotted var(--dim); }
+  nav.toc a:hover { color: var(--text); }
+  main { padding-block: 16px 44px; display: grid; gap: 48px; }
+  section { display: grid; gap: 14px; scroll-margin-top: 16px; }
+  h2 { margin: 0; font: 13px/1.5 var(--pixel); color: var(--purple); letter-spacing: .5px; }
+  p { margin: 0; max-width: 68ch; }
+  ul { margin: 0; padding-left: 20px; max-width: 68ch; display: grid; gap: 5px; }
+  .ui { font: 10px/1 var(--pixel); color: var(--yellow); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 3px 6px; white-space: nowrap; }
+  kbd { font: 11px/1 ui-monospace, Menlo, monospace; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 2px 6px; }
+  figure { margin: 0; }
+  figure img { width: 100%; max-width: 900px; height: auto; display: block; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+  .tips { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; display: grid; gap: 10px; max-width: 76ch; }
+  footer { padding-block: 16px 32px; border-top: 1px solid var(--border); font-size: 13px; color: var(--dim); display: flex; flex-wrap: wrap; gap: 6px 16px; }
+  footer a, main a { color: var(--purple); }
+  :focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="./">← Back to the piano</a>
+  <h1>How to play Meow Piano</h1>
+  <p class="lede">Every key is a real cat's meow, pitch-shifted. Play it, record it, open a song and share it as a link.</p>
+  <div class="try">
+    <a class="hear" href="./#song=7VPNahRBEO6ebGaYrIkaJCOshyCCSJZmWJqhm6Kppu1lCSRvsEiEveSSXHLLLXjz5NV3EPTgO3jIRb159uDRFxD8ZtZdk5jN_0VIdW3V1_XzzUx179yr5HDuwaj3_vHC85c7uzur2zur8es7-aP1Zv6w9aX1SNzKrdyUzJ0h4pM8vsQsPfcnRqOLmV6v1mt4rLH5T2BPTD_gOmDU6FXcJe3FzDn3AfpZim9SfJfipxS_pHidiLcJmj8kL2QhFVZRyBW4hyt_9gCdvJ1mSZbHTsh9m1OXUeIyzn3scMidbxOn1mWGEtiKc42EIaSsQVIDppVGqgBMlO26rCSU2ah9px9NCMR5DNZ749rBa2ZDqefKOW0zdgWRNokjZZ3tYl8SU5V7tm496qVBHwwxDALl_QiS4PvetGMAj-fIJg0eVOyC05lnsDnypBN2ICQbnG2ipaPIlNe1lp1ej-A1NR8NAni55nN9D14fNjfZRAYv1Z2gAIPjsiTtCbzGEdkjURCDl_3GhvN6vTMI4GUa5H28XnBlvx0ZnGRiGvBqbLsh84ROo33CGCBNIxXFPBgwaa87JqwRq9x6Nq5sa_aG1tLKkcaMnlCpzdOErLFdmznCtFGJTszbBKYNtDlTd5FRaLK67jF6DS3jjoqeoSE2z8Fc6vKmuinOCtQmqj6Nkitko-8E3AbXZkoxUMJp4eCqf-8LMsMzRZ5mlWpMY0-gv6aQQ1UU0IlH-Mz9SV8o5McIF38KLxM9DUKHk9gkcBMQf1RVKHUE4JFXikhVT1SNRaqZu-OVsvHDSWh4OpbTmmHtxkaiYjaadRGGW1uj0fb27u7e3v7-gTyQH1vjJbI7YiG_myynYlEspsuJuCvyhXvy_rxY-g0">▶ Hear Canon in D</a>
+    <a class="get" href="songs/canon-in-d.mid" download>⤓ canon-in-d.mid</a>
+  </div>
+  <nav class="toc" aria-label="Sections">
+    <a href="#play">Playing</a>
+    <a href="#open">Opening a song</a>
+    <a href="#transport">Play, pause, skip</a>
+    <a href="#record">Recording</a>
+    <a href="#share">Sharing and saving</a>
+    <a href="#sound">The sound</a>
+    <a href="#midi">A MIDI keyboard</a>
+    <a href="#tips">Good to know</a>
+  </nav>
+</header>
+
+<main>
+  <section id="play">
+    <h2>Playing</h2>
+    <ul>
+      <li>Click the keys, or use the computer keys printed on them (<kbd>A</kbd> is C).</li>
+      <li><kbd>Space</kbd> or <span class="ui">SUSTAIN</span> is the pedal: notes keep sounding after you let go.</li>
+      <li>Drag the <span class="ui">PITCH</span> wheel, or hold <kbd>↑</kbd> <kbd>↓</kbd>, to bend up to two semitones. Let go and it springs back.</li>
+      <li><kbd>1</kbd>–<kbd>5</kbd> pick the octave; the label above the keys shows the range.</li>
+    </ul>
+    <figure>
+      <img src="help/play.webp" alt="Clicking C, E and G; pressing A, D, G and K on the computer keyboard; holding Space to sustain a chord while dragging the pitch wheel up, which springs back; pressing 4 moves up an octave." width="900" height="480" loading="lazy">
+    </figure>
+  </section>
+
+  <section id="open">
+    <h2>Opening a song</h2>
+    <p><span class="ui">OPEN</span> reads a MIDI file (<kbd>.mid</kbd>), such as the Canon above. Each
+      instrument in it gets a checkbox; uncheck one to leave it out. Drums start unchecked.</p>
+    <figure>
+      <img src="help/open.webp" alt="Clicking OPEN loads Canon in D: Violin I, II and III and Basso continuo appear with checkboxes; unchecking Violin II and III leaves fewer notes; checking them again brings them back." width="900" height="480" loading="lazy">
+    </figure>
+  </section>
+
+  <section id="transport">
+    <h2>Play, pause, skip</h2>
+    <ul>
+      <li><span class="ui">PLAY</span> becomes <span class="ui">PAUSE</span> while a song plays. <span class="ui">STOP</span> goes back to the start.</li>
+      <li><span class="ui">◀◀ 10</span> and <span class="ui">10 ▶▶</span> jump ten seconds. Drag the bar to go anywhere.</li>
+      <li>Keys light green as the song plays. Notes below or above the keys in view are counted at the edges
+        (<span class="ui">◀ 1</span>); change the octave to see them.</li>
+    </ul>
+    <figure>
+      <img src="help/transport.webp" alt="Playing Canon in D: the bass plays below the keys in view, shown as one note to the left; pressing 1 moves the view down two octaves and the bass key lights; dragging the bar jumps to the middle; 10 forward skips ahead; PAUSE stops." width="900" height="480" loading="lazy">
+    </figure>
+  </section>
+
+  <section id="record">
+    <h2>Recording</h2>
+    <p><span class="ui">REC</span> (or <kbd>Enter</kbd>) records the keys, the pedal and the wheel;
+      <span class="ui">STOP</span> ends it. Click <i>untitled</i> to give it a name.</p>
+    <figure>
+      <img src="help/record.webp" alt="Clicking REC, playing a few notes and a sustained chord, clicking STOP, typing First meow as the name, and playing it back." width="900" height="480" loading="lazy">
+    </figure>
+  </section>
+
+  <section id="share">
+    <h2>Sharing and saving</h2>
+    <ul>
+      <li><span class="ui">SHARE</span> copies a link with the whole song in it: notes, pedal, wheel, sound and
+        name. Nothing is uploaded; whoever opens the link hears it.</li>
+      <li><span class="ui">SAVE</span> writes a MIDI file you can open here again or in other music software.</li>
+    </ul>
+    <figure>
+      <img src="help/share.webp" alt="With Canon in D open, clicking SHARE shows LINK COPIED; clicking SAVE shows MIDI SAVED." width="900" height="480" loading="lazy">
+    </figure>
+  </section>
+
+  <section id="sound">
+    <h2>The sound</h2>
+    <p>The <span class="ui">▶</span> tab beside the keys opens the settings. <span class="ui">IN</span> and
+      <span class="ui">OUT</span> pick the part of the meow that holds while a key is down; <span class="ui">GRAIN</span>
+      and <span class="ui">SCATTER</span> change its texture; <span class="ui">A4</span> tunes the whole piano
+      (440 is standard).</p>
+    <figure>
+      <img src="help/sound.webp" alt="Opening the settings panel, dragging the OUT handle later in the meow, playing a note, then dragging A4 lower and playing it again." width="900" height="480" loading="lazy">
+    </figure>
+  </section>
+
+  <section id="midi">
+    <h2>A MIDI keyboard</h2>
+    <p>Plug one in and press <span class="ui">MIDI IN</span>. Its keys, pitch wheel and sustain pedal play the
+      piano and record like everything else, with no limit on keys held at once. Chrome, Edge or Firefox; Safari
+      has no MIDI. The keyboard's own octave buttons move its notes.</p>
+  </section>
+
+  <section id="tips" class="tips">
+    <h2>Good to know</h2>
+    <ul>
+      <li>A link holds about five minutes of playing. Longer, it keeps a recording's last part or a song's
+        first, and says which. <span class="ui">SAVE</span> keeps everything.</li>
+      <li>Laptop keyboards register only a few keys at once, so big chords plus <kbd>↑</kbd> can drop
+        notes. Hold the chord with <kbd>Space</kbd> and let go of the keys, or use a MIDI keyboard.</li>
+      <li>Every note plays at one loudness; how hard a MIDI key is hit doesn't change it.</li>
+      <li>Sound starts after your first click or key press on the page.</li>
+    </ul>
+  </section>
+</main>
+
+<footer>
+  <a href="./">Back to the piano</a>
+  <a href="https://github.com/csciuto/meowpiano">Source on GitHub</a>
+  <span>Questions: corey.sciuto+meow@gmail.com</span>
+  <a href="https://corey.sciu.to/projects/">More projects</a>
+  <span class="version" title="Version">dev</span>
+</footer>
+</body>
+</html>

@@ -11,3 +11,10 @@ Commit and push freely once tests pass.
   tests (`npm run test:e2e`) run at desktop and phone size with axe checks.
 - `.github/workflows/deploy.yml` runs both and only then deploys, stamping `'dev'` in `js/main.js`.
 - The meow is Dan Crosby's "My cat Silas meowing" (CC BY-SA 3.0). Keep the credit visible.
+
+## Help page
+
+`help.html` with clips in `help/*.webp` (animated WebP, silent), recorded by `npm run help-clips [name…]`
+(`tools/help-clips.js`: Playwright drives the piano with a drawn cursor and key cap; sharp writes the WebP).
+Re-record a clip whenever the UI it shows changes. Its "Hear Canon in D" link is `songs/canon-in-d.mid` as a
+song link; a unit test checks it still opens, so regenerate it if the link format changes.

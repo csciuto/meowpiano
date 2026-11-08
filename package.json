@@ -5,11 +5,13 @@
     "test": "vitest run tests/",
     "test:e2e": "playwright test",
     "screenshot": "UPDATE_PREVIEW=1 playwright test e2e/smoke.spec.js --project=desktop",
-    "test:all": "npm test && npm run test:e2e"
+    "test:all": "npm test && npm run test:e2e",
+    "help-clips": "node tools/help-clips.js"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.10.2",
     "@playwright/test": "^1.64.1",
-    "vitest": "^2.0.0",
-    "@axe-core/playwright": "4.10.2"
+    "sharp": "^0.34.3",
+    "vitest": "^2.0.0"
   }
 }

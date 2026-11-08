@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 // Every page, checked with axe. Add new pages here: [name, path, selector that appears once it has rendered].
-const PAGES = [['Meow Piano', '/', '#btnStop']];
+const PAGES = [['Meow Piano', '/', '#btnStop'], ['Help', '/help.html', '#tips']];
 
 for (const [name, path, ready] of PAGES) {
   test(`${name}: no accessibility violations`, async ({ page }) => {

@@ -136,3 +136,14 @@ test('name a recording: the link and the saved file carry it @desktop', async ({
   const { readFileSync } = await import('node:fs');
   expect(fromMidi(new Uint8Array(readFileSync(await download.path()))).title).toBe('Silas sings: a test');
 });
+
+test('help: linked from the piano, and Hear Canon in D loads it', async ({ page }) => {
+  await page.locator('a[href="help.html"]').click();
+  await expect(page.locator('h1')).toHaveText('How to play Meow Piano');
+  for (const img of await page.locator('figure img').all()) {
+    await img.scrollIntoViewIfNeeded();
+    await expect.poll(() => img.evaluate(el => el.complete && el.naturalWidth)).toBe(900);
+  }
+  await page.locator('a.hear').click();
+  await expect(page.locator('#status')).toHaveText('Canon in D · 1:51 · press PLAY');
+});

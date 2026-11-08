@@ -310,6 +310,14 @@ const linkRoom = () => LINK_CAP - linkBase().length;
 const FULL_MARGIN = 250;   // characters: stop a little early, a second of dense playing fits in this
 
 let _status = () => {}, _setReady = () => {};
+const toastTimers = {};
+function popup(id, text, ms) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(toastTimers[id]);
+  toastTimers[id] = setTimeout(() => el.classList.remove('show'), ms);
+}
 
 /** Open the song in the address, if there is one. Returns true if it loaded. */
 export async function loadSongFromLink() {
@@ -321,6 +329,8 @@ export async function loadSongFromLink() {
     state.recEvents = song.events; state.recEnd = song.end; state.songText = m[1];
     _setReady(true);
     _status('song loaded · ' + fmtTime(song.end) + ' · press PLAY');
+    popup('playToast', 'SONG LOADED · ' + fmtTime(song.end), 5000);
+    document.getElementById('btnPlay').classList.add('ready');   // glows until played
     return true;
   } catch (e) {
     _status("that song link is damaged");
@@ -349,6 +359,8 @@ export function initTransport(onRefresh, onStatus) {
 
   function startPb() {
     if (!state.recEvents.length) return;
+    btnPlay.classList.remove('ready');
+    document.getElementById('playToast').classList.remove('show');
     state.isPlay = true;
     btnPlay.classList.add('active');
     onStatus('PLAYING...', 'playing');
@@ -389,6 +401,7 @@ export function initTransport(onRefresh, onStatus) {
   }
 
   function startRec() {
+    btnPlay.classList.remove('ready');
     state.recEvents = [];
     state.songText = '';
     state.isRec = true;
@@ -458,6 +471,7 @@ export function initTransport(onRefresh, onStatus) {
     state.recEvents = [];
     state.songText = '';
     _setReady(false);
+    btnPlay.classList.remove('ready');
     state.loop = false;
     btnLoop.classList.remove('active');
     if (location.hash) history.replaceState(null, '', location.pathname);
@@ -471,5 +485,6 @@ export function initTransport(onRefresh, onStatus) {
     let copied = false;
     try { await navigator.clipboard.writeText(url); copied = true; } catch (_) {}
     onStatus((copied ? 'link copied' : 'link in the address bar') + ' · ' + url.length.toLocaleString('en-US') + ' chars');
+    popup('shareToast', copied ? 'LINK COPIED!' : 'LINK IN ADDRESS BAR', 2600);
   });
 }

@@ -84,6 +84,24 @@ body::before {
 .btn-clear { color: #8173AB; border-color: #8173AB; font-size: 7px; }
 .btn-share { color: #FFE066; border-color: #FFE066; font-size: 7px; }
 .btn-share:disabled { opacity: 0.3; cursor: not-allowed; }
+.pop-wrap { position: relative; display: inline-flex; }
+.toast { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translate(-50%, 6px) scale(0.85);
+  white-space: nowrap; font-family: "Press Start 2P", monospace; font-size: 9px; color: #080B14; background: #FFE066;
+  padding: 9px 12px; border-radius: 8px; box-shadow: 0 0 18px rgba(255,224,102,0.75); pointer-events: none;
+  opacity: 0; transition: opacity .2s, transform .2s cubic-bezier(.3,1.6,.5,1); z-index: 5; }
+.toast::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -6px; border: 6px solid transparent; border-top-color: #FFE066; }
+.toast.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+/* the last button: open leftward so it stays on screen */
+.toast-end { left: auto; right: 0; transform: translateY(6px) scale(0.85); transform-origin: bottom right; }
+.toast-end.show { transform: none; }
+.toast-end::after { left: auto; right: 22px; margin-left: 0; }
+.toast-play { background: #44FF88; box-shadow: 0 0 18px rgba(68,255,136,0.75); }
+.toast-play::after { border-top-color: #44FF88; }
+.btn-play.ready { animation: playReady 1.1s ease-in-out infinite; }
+@keyframes playReady { 0%,100% { box-shadow: 0 0 4px rgba(68,255,136,0.5); } 50% { box-shadow: 0 0 22px rgba(68,255,136,1); background: rgba(68,255,136,0.15); } }
+@media (prefers-reduced-motion: reduce) { .btn-play.ready { animation: none; box-shadow: 0 0 14px rgba(68,255,136,0.9); } }
+@media (prefers-reduced-motion: reduce) { .toast { transition: opacity .2s; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) { .toast-end { transform: none; } }
 .status { font-size: 8px; color: #8373A4; min-height: 16px; text-align: center; }
 .status.recording { color: #FF5555; animation: blink 0.9s step-end infinite; }
 .status.playing { color: #44FF88; }

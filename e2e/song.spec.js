@@ -56,17 +56,24 @@ test('record, share, and the link plays the same notes in a new tab @desktop', a
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.locator('#btnShare').click();
   await expect(page.locator('#status')).toHaveText(/link (copied|in the address bar) · \d+ chars/);
+  await expect(page.locator('#shareToast')).toHaveClass(/show/);
+  await expect(page.locator('#shareToast')).toHaveText(/LINK COPIED!|LINK IN ADDRESS BAR/);
+  await expect(page.locator('#shareToast')).not.toHaveClass(/show/, { timeout: 4000 });
   expect(page.url()).toMatch(/#song=[\w-]+$/);
 
   const other = await context.newPage();
   await other.goto(page.url());
   await expect(other.locator('#status')).toHaveText(/song loaded · 0:0\d · press PLAY/);
   await expect(other.locator('#btnPlay')).toBeEnabled();
+  await expect(other.locator('#playToast')).toHaveClass(/show/);
+  await expect(other.locator('#playToast')).toHaveText(/SONG LOADED · 0:0\d/);
+  await expect(other.locator('#btnPlay')).toHaveClass(/ready/);
   const loaded = await st(other, 'state.recEvents.filter(e => e.type === "on").map(e => [e.note, Math.round(e.freq)])');
   expect(loaded).toEqual(recorded);
   const pedal = await st(other, 'state.recEvents.filter(e => e.type.startsWith("sustain")).map(e => e.type)');
   expect(pedal).toEqual(['sustain_on', 'sustain_off']);
   await other.locator('#btnPlay').click();
+  await expect(other.locator('#btnPlay')).not.toHaveClass(/ready/);
   await expect.poll(() => st(other, 'Object.keys(state.pbVoices).length'), { timeout: 3000 }).toBeGreaterThan(0);
 });
 

@@ -86,10 +86,12 @@ Then open `http://localhost:8000` (or whichever port your server uses).
 |-----|--------|
 | `Space` | Sustain pedal (catches held notes and keeps released ones ringing) |
 | `Enter` | Toggle record on/off |
+| `↑` / `↓` | Pitch wheel: bend up or down while held, spring back on release |
+| `1`–`5` | Octave −2, −1, 0, +1, +2 |
 
 ### Pitch wheel
 
-Drag the wheel on the right side of the keyboard up or down to bend pitch up to ±2 semitones. It springs back to center on release. Pitch wheel movement is recorded and played back.
+Drag the wheel on the right side of the keyboard up or down to bend pitch up to ±2 semitones. It springs back to center on release. `↑` and `↓` do the same from the keyboard. Pitch wheel movement is recorded and played back.
 
 ### Controls
 
@@ -99,8 +101,22 @@ Drag the wheel on the right side of the keyboard up or down to bend pitch up to 
 | PLAY | Play back the recording |
 | LOOP | Toggle looped playback |
 | STOP | Stop playback or end recording |
-| CLR | Clear the current recording |
+| CLR | Clear the current recording (and its link) |
+| SHARE | Put the recording in the address and copy the link |
 | SUSTAIN | Sustain pedal while pressed |
+
+### Sharing a recording
+
+A recording travels in the link (`#song=…`), like a player-piano roll: which keys, when, how long they were
+held, the pedal, the pitch wheel, the loop points and the grain settings. Nothing is uploaded, and opening the
+link loads the song ready to play.
+
+Links stop at 8,000 characters, the most that chat apps and servers reliably pass along. That's about five
+minutes of expressive playing (`tests/song.test.js` checks a five-minute piece of ~1,700 notes, a pedal change
+every bar and a bend every other bar). While recording, the status shows how full the link is, and recording
+stops by itself when it's full; for a longer piece, record a second part. The format is in `js/song.js`:
+note starts in 5 ms steps, held lengths in 10 ms steps, pitch-wheel drags kept to within 4 cents, then
+compressed.
 
 ### Settings panel
 

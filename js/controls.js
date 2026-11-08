@@ -11,6 +11,7 @@ import {
   noteBufs,
 } from './audio.js';
 import { noteMap } from './notes.js';
+import { playable, songText, readSong, fitSong, fmtTime, LINK_CAP } from './song.js';
 
 // ── Loop waveform canvas ──────────────────────────────────────────────
 
@@ -211,6 +212,56 @@ export function initSettings() {
 }
 
 // ── Pitch wheel ───────────────────────────────────────────────────────
+// Drag the wheel, or hold ↑ / ↓; let go and it springs back to 0. A recording keeps the moves and one
+// 'wheel_release' (playback rebuilds the spring-back, see song.js), not every step of the spring.
+
+let renderWheel = () => {};
+let springTimer = null, keyTimer = null, keyDir = 0, held = false;
+const SPRING_STEPS = 20, STEP_MS = 16, KEY_RAMP_MS = 240;   // ↑ / ↓ reach the end of the wheel in 240 ms
+
+function recordBend() {
+  if (state.isRec) state.recEvents.push({ type: 'pitch', bend: state.pitchBend, t: performance.now() - state.recStart });
+}
+function grabWheel() {
+  if (springTimer) { clearInterval(springTimer); springTimer = null; }
+  held = true;
+}
+function setBend(v) {
+  v = Math.round(Math.max(-state.pitchMax, Math.min(state.pitchMax, v)) * 100) / 100;
+  if (v === state.pitchBend) return;
+  state.pitchBend = v;
+  renderWheel();
+  recordBend();
+}
+function letGoWheel() {
+  if (!held) return;
+  held = false;
+  if (state.isRec) state.recEvents.push({ type: 'wheel_release', t: performance.now() - state.recStart });
+  const from = state.pitchBend;
+  let step = 0;
+  springTimer = setInterval(() => {
+    step++;
+    state.pitchBend = step >= SPRING_STEPS ? 0 : from * (1 - step / SPRING_STEPS);
+    if (step >= SPRING_STEPS) { clearInterval(springTimer); springTimer = null; }
+    renderWheel();
+  }, STEP_MS);
+}
+
+/** ↑ (dir 1) or ↓ (dir -1) pressed: bend that way until the key comes up. */
+export function keyBendStart(dir) {
+  if (keyDir === dir) return;
+  keyDir = dir;
+  grabWheel();
+  clearInterval(keyTimer);
+  const perStep = state.pitchMax * STEP_MS / KEY_RAMP_MS;
+  keyTimer = setInterval(() => setBend(state.pitchBend + dir * perStep), STEP_MS);
+}
+export function keyBendStop(dir) {
+  if (keyDir !== dir) return;
+  keyDir = 0;
+  clearInterval(keyTimer); keyTimer = null;
+  letGoWheel();
+}
 
 export function initPitchWheel() {
   const track  = document.getElementById('pitchTrack');
@@ -220,21 +271,14 @@ export function initPitchWheel() {
   const travel  = TRACK_H - THUMB_H;
   let dragging = false, startY = 0, startBend = 0;
 
-  function bendToY(bend) {
-    return (travel / 2) * (1 - bend / state.pitchMax);
-  }
-  let _lastRecordedBend = null;
-  function renderWheel() {
-    thumb.style.top = bendToY(state.pitchBend) + 'px';
+  renderWheel = () => {
+    thumb.style.top = (travel / 2) * (1 - state.pitchBend / state.pitchMax) + 'px';
     valLbl.textContent = (state.pitchBend >= 0 ? '+' : '') + state.pitchBend.toFixed(2);
     applyPitchToLiveVoices(noteMap);
-    if (state.isRec && state.pitchBend !== _lastRecordedBend) {
-      _lastRecordedBend = state.pitchBend;
-      state.recEvents.push({ type: 'pitch', bend: state.pitchBend, t: performance.now() - state.recStart });
-    }
-  }
+  };
 
   track.addEventListener('pointerdown', e => {
+    grabWheel();
     dragging = true; startY = e.clientY; startBend = state.pitchBend;
     thumb.classList.add('active');
     track.setPointerCapture(e.pointerId);
@@ -242,28 +286,13 @@ export function initPitchWheel() {
   });
   track.addEventListener('pointermove', e => {
     if (!dragging) return;
-    const dy = e.clientY - startY;
-    state.pitchBend = Math.round(
-      Math.max(-state.pitchMax, Math.min(state.pitchMax,
-        startBend - (dy / (travel / 2)) * state.pitchMax
-      )) * 100
-    ) / 100;
-    renderWheel();
+    setBend(startBend - ((e.clientY - startY) / (travel / 2)) * state.pitchMax);
   });
-
   function release() {
     if (!dragging) return;
     dragging = false;
     thumb.classList.remove('active');
-    const from = state.pitchBend;
-    let step = 0;
-    const steps = 20;
-    const interval = setInterval(() => {
-      step++;
-      state.pitchBend = from * (1 - step / steps);
-      if (step >= steps) { state.pitchBend = 0; clearInterval(interval); }
-      renderWheel();
-    }, 16);
+    letGoWheel();
   }
   track.addEventListener('pointerup',     release);
   track.addEventListener('pointercancel', release);
@@ -271,7 +300,41 @@ export function initPitchWheel() {
   renderWheel();
 }
 
-// ── Transport (record / play / stop / clear) ─────────────────────────
+// ── Transport (record / play / stop / clear / share) ─────────────────
+// A take is kept as it will be shared: when recording stops it goes through the link format (song.js), so
+// what plays here is what a link plays. Recording stops itself before the link would pass LINK_CAP.
+
+const settingsNow = () => ({ loopStart: state.loopStart, loopEnd: state.loopEnd, crossfade: state.crossfade, grainDur: state.grainDur, grainOverlap: state.grainOverlap });
+const linkBase = () => location.origin + location.pathname + '#song=';
+const linkRoom = () => LINK_CAP - linkBase().length;
+const FULL_MARGIN = 250;   // characters: stop a little early, a second of dense playing fits in this
+
+let _status = () => {}, _setReady = () => {};
+
+/** Open the song in the address, if there is one. Returns true if it loaded. */
+export async function loadSongFromLink() {
+  const m = location.hash.match(/^#song=([\w-]+)$/);
+  if (!m) return false;
+  try {
+    const song = await readSong(m[1]);
+    applySettings(song.settings);
+    state.recEvents = song.events; state.recEnd = song.end; state.songText = m[1];
+    _setReady(true);
+    _status('song loaded · ' + fmtTime(song.end) + ' · press PLAY');
+    return true;
+  } catch (e) {
+    _status("that song link is damaged");
+    return false;
+  }
+}
+function applySettings(st) {
+  state.loopStart = st.loopStart; state.loopEnd = st.loopEnd;
+  _renderHandles();
+  for (const [id, v] of [['crossfadeSlider', st.crossfade], ['grainSlider', st.grainDur], ['scatterSlider', st.grainOverlap]]) {
+    const el = document.getElementById(id);
+    el.value = v; el.dispatchEvent(new Event('input'));
+  }
+}
 
 export function initTransport(onRefresh, onStatus) {
   const btnRecord = document.getElementById('btnRecord');
@@ -279,16 +342,20 @@ export function initTransport(onRefresh, onStatus) {
   const btnLoop   = document.getElementById('btnLoop');
   const btnStop   = document.getElementById('btnStop');
   const btnClear  = document.getElementById('btnClear');
+  const btnShare  = document.getElementById('btnShare');
+  _status = onStatus;
+  _setReady = on => { btnPlay.disabled = btnLoop.disabled = btnShare.disabled = !on; };
+  let watch = null, recSettings = null;
 
   function startPb() {
     if (!state.recEvents.length) return;
     state.isPlay = true;
     btnPlay.classList.add('active');
     onStatus('PLAYING...', 'playing');
-    const maxT = state.recEvents.reduce((m, e) => Math.max(m, e.t), 0);
-    state.recEvents.forEach(ev => {
+    const evs = playable(state.recEvents);
+    const maxT = Math.max(state.recEnd || 0, evs.reduce((m, e) => Math.max(m, e.t), 0));
+    evs.forEach(ev => {
       state.timers.push(setTimeout(() => {
-        if (ev.type === 'octave')       { return; }
         if (ev.type === 'sustain_on')   { pbSustainOn();  return; }
         if (ev.type === 'sustain_off')  { pbSustainOff(); return; }
         if (ev.type === 'pitch') {
@@ -298,8 +365,8 @@ export function initTransport(onRefresh, onStatus) {
         }
         const n = noteMap[ev.note];
         if (!n) return;
-        if (ev.type === 'on')  pbNoteOn(n, ev.freq, ev.sus, ev.ls, ev.le, ev.dec, onRefresh);
-        if (ev.type === 'off') pbNoteOff(n, ev.sus);
+        if (ev.type === 'on')  pbNoteOn(n, ev.freq, true, ev.ls, ev.le, ev.dec, onRefresh);
+        if (ev.type === 'off') pbNoteOff(n);
         onRefresh();
       }, ev.t));
     });
@@ -307,6 +374,7 @@ export function initTransport(onRefresh, onStatus) {
       state.isPlay = false;
       btnPlay.classList.remove('active');
       stopAllPbVoices();
+      state.pitchBend = 0;
       if (state.loop) { state.timers = []; startPb(); } else onStatus('done');
     }, maxT + 800));
   }
@@ -320,63 +388,88 @@ export function initTransport(onRefresh, onStatus) {
     onRefresh();
   }
 
+  function startRec() {
+    state.recEvents = [];
+    state.songText = '';
+    state.isRec = true;
+    state.recStart = performance.now();
+    recSettings = settingsNow();
+    state.loop = false;
+    btnLoop.classList.remove('active');
+    btnRecord.classList.add('active');
+    btnRecord.innerHTML = '&#x25CF; REC';
+    _setReady(false);
+    onStatus('RECORDING 0:00', 'recording');
+    boot();
+    // the link fills as you play: show how full, and stop before it's too long
+    watch = setInterval(async () => {
+      if (!state.isRec) return;
+      const t = performance.now() - state.recStart;
+      const len = (await songText(state.recEvents, t, recSettings)).length;
+      if (!state.isRec) return;
+      if (len > linkRoom() - FULL_MARGIN) { finishRec('link full: recorded '); return; }
+      onStatus('RECORDING ' + fmtTime(t) + ' · LINK ' + Math.round(100 * len / linkRoom()) + '%', 'recording');
+    }, 1000);
+  }
+
+  // stop recording and keep the take as its link holds it (cut to fit, if it ran over)
+  async function finishRec(msg = 'recorded ') {
+    if (!state.isRec) return;
+    state.isRec = false;
+    clearInterval(watch);
+    btnRecord.classList.remove('active');
+    btnRecord.innerHTML = '&#x23FA; REC';
+    const end = performance.now() - state.recStart, raw = state.recEvents;
+    if (!raw.length) { onStatus('nothing recorded'); return; }
+    const fit = await fitSong(raw, end, recSettings, linkRoom());
+    const song = await readSong(fit.text);
+    state.recEvents = song.events; state.recEnd = song.end; state.songText = fit.text;
+    _setReady(song.events.length > 0);
+    onStatus((fit.cut ? 'link full: recorded ' : msg) + fmtTime(song.end) + ' · LINK ' + Math.round(100 * fit.text.length / linkRoom()) + '%');
+  }
+
   btnRecord.addEventListener('click', () => {
     if (state.isPlay) stopPb();
-    if (state.isRec) {
-      state.isRec = false;
-      btnRecord.classList.remove('active');
-      btnRecord.innerHTML = '&#x23FA; REC';
-      onStatus('recorded ' + ((performance.now() - state.recStart) / 1000).toFixed(2) + 's');
-      if (state.recEvents.length) { btnPlay.disabled = false; btnLoop.disabled = false; }
-    } else {
-      state.recEvents = [];
-      state.isRec = true;
-      state.recStart = performance.now();
-      state.loop = false;
-      btnLoop.classList.remove('active');
-      btnRecord.classList.add('active');
-      btnRecord.innerHTML = '&#x25CF; REC';
-      btnPlay.disabled = true;
-      btnLoop.disabled = true;
-      onStatus('RECORDING...', 'recording');
-      boot();
-    }
+    if (state.isRec) finishRec(); else startRec();
   });
 
   btnPlay.addEventListener('click', () => {
     if (state.isRec) return;
-    if (state.isPlay) { stopPb(); onStatus('stopped'); } else startPb();
+    if (state.isPlay) { stopPb(); onStatus('stopped'); } else boot().then(startPb);
   });
 
   btnLoop.addEventListener('click', () => {
     if (btnLoop.disabled) return;
     state.loop = !state.loop;
     btnLoop.classList.toggle('active', state.loop);
-    if (state.loop && !state.isPlay && state.recEvents.length) startPb();
+    if (state.loop && !state.isPlay && state.recEvents.length) boot().then(startPb);
   });
 
   btnStop.addEventListener('click', () => {
-    let msg = 'stopped';
-    if (state.isRec) {
-      state.isRec = false;
-      btnRecord.classList.remove('active');
-      btnRecord.innerHTML = '&#x23FA; REC';
-      msg = 'recorded ' + ((performance.now() - state.recStart) / 1000).toFixed(2) + 's';
-    }
+    if (state.isRec) finishRec();
+    else onStatus('stopped');
     stopPb();
     state.loop = false;
     btnLoop.classList.remove('active');
-    if (state.recEvents.length) { btnPlay.disabled = false; btnLoop.disabled = false; }
-    onStatus(msg);
   });
 
   btnClear.addEventListener('click', () => {
     if (state.isPlay || state.isRec) return;
     state.recEvents = [];
-    btnPlay.disabled = true;
-    btnLoop.disabled = true;
+    state.songText = '';
+    _setReady(false);
     state.loop = false;
     btnLoop.classList.remove('active');
+    if (location.hash) history.replaceState(null, '', location.pathname);
     onStatus('cleared');
+  });
+
+  btnShare.addEventListener('click', async () => {
+    if (!state.songText) return;
+    const url = linkBase() + state.songText;
+    history.replaceState(null, '', url);
+    let copied = false;
+    try { await navigator.clipboard.writeText(url); copied = true; } catch (_) {}
+    onStatus((copied ? 'link copied' : 'link in the address bar') + ' · ' + url.length.toLocaleString('en-US') + ' chars');
   });
 }

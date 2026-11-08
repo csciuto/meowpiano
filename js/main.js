@@ -10,6 +10,9 @@ import {
   initSettings,
   initPitchWheel,
   initTransport,
+  keyBendStart,
+  keyBendStop,
+  loadSongFromLink,
   updateSustainUI,
 } from './controls.js';
 
@@ -58,6 +61,8 @@ function off(n) {
 
 // ── Keyboard shortcuts ────────────────────────────────────────────────
 
+const OCTAVE_KEYS = { 1: -2, 2: -1, 3: 0, 4: 1, 5: 2 };
+
 document.addEventListener('keydown', e => {
   if (e.repeat) return;
   if (e.key === ' ') {
@@ -71,11 +76,22 @@ document.addEventListener('keydown', e => {
     document.getElementById('btnRecord').click();
     return;
   }
+  if (e.target.closest && e.target.closest('input')) return;   // sliders keep their own arrow keys
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {          // ↑ / ↓: the pitch wheel
+    keyBendStart(e.key === 'ArrowUp' ? 1 : -1);
+    e.preventDefault();
+    return;
+  }
+  if (OCTAVE_KEYS[e.key] !== undefined && !e.metaKey && !e.ctrlKey && !e.altKey) {   // 1–5: octave −2 … +2
+    setOctave(OCTAVE_KEYS[e.key]);
+    return;
+  }
   const n = keyMap[e.key.toLowerCase()];
   if (n) { boot().then(() => on(n)); e.preventDefault(); }
 });
 
 document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { keyBendStop(e.key === 'ArrowUp' ? 1 : -1); return; }
   if (e.key === ' ') {
     setSustain(false);
     updateSustainUI();
@@ -142,4 +158,5 @@ initTransport(refreshDisplay, setStatus);
 initVisualizer();
 initDecorations();
 
-boot().then(() => setStatus('click a key or press keyboard'));
+boot().then(async () => { if (!(await loadSongFromLink())) setStatus('click a key or press keyboard'); });
+window.addEventListener('hashchange', () => loadSongFromLink());

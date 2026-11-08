@@ -36,5 +36,7 @@ export const state = {
   loop:      false,
   recStart:  0,
   recEvents: [],
+  recEnd:    0,      // ms: when the take stopped
+  songText:  '',     // the take as link text (after #song=)
   timers:    [],
 };

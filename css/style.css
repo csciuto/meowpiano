@@ -82,6 +82,8 @@ body::before {
 .btn-loop.active { background: #88AAFF; color: #080B14; }
 .btn-stop { color: #FFAA44; border-color: #FFAA44; }
 .btn-clear { color: #8173AB; border-color: #8173AB; font-size: 7px; }
+.btn-share { color: #FFE066; border-color: #FFE066; font-size: 7px; }
+.btn-share:disabled { opacity: 0.3; cursor: not-allowed; }
 .status { font-size: 8px; color: #8373A4; min-height: 16px; text-align: center; }
 .status.recording { color: #FF5555; animation: blink 0.9s step-end infinite; }
 .status.playing { color: #44FF88; }

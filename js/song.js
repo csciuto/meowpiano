@@ -219,6 +219,28 @@ function lastPitch(out) {
   return null;
 }
 
+/**
+ * Where a song stands at time `at`, for starting playback there: the pedal, the wheel, and the notes
+ * sounding (key still down, or key up but held by the pedal; `up` says which). `evs` are playable() events.
+ */
+export function stateAt(evs, at) {
+  let pedal = false, bend = 0;
+  const down = new Map();   // note name → {on, up}
+  for (const e of evs) {
+    if (e.t >= at) break;
+    if (e.type === 'sustain_on') pedal = true;
+    else if (e.type === 'sustain_off') { pedal = false; for (const [k, v] of down) if (v.up) down.delete(k); }
+    else if (e.type === 'pitch') bend = e.bend;
+    else if (e.type === 'wheel_release') bend = 0;   // raw events: the spring is short, call it back at 0
+    else if (e.type === 'on') down.set(e.note, { on: e, up: false });
+    else if (e.type === 'off') {
+      const v = down.get(e.note);
+      if (v) { if (pedal) v.up = true; else down.delete(e.note); }
+    }
+  }
+  return { pedal, bend, sounding: [...down.values()].map(v => ({ ...v.on, up: v.up })) };
+}
+
 // ── link text ─────────────────────────────────────────────────────────
 
 async function squeeze(bytes, mode) {
@@ -246,19 +268,45 @@ export async function readSong(text) {
 }
 
 /**
- * The take cut short, if needed, so its text fits in `room` characters: the hard stop. Returns
- * {text, events, end, cut} where events and end are what the link holds.
+ * The take from `at` on, starting at 0 as it stood at `at`: the pedal down if it was, the wheel where it was,
+ * and notes still sounding struck again (and let go at once if only the pedal held them).
  */
-export async function fitSong(events, end, settings, room) {
+export function slice(events, at) {
+  if (at <= 0) return events;
+  const s = stateAt(events, at);
+  const head = [];
+  if (s.pedal) head.push({ type: 'sustain_on', t: 0 });
+  if (s.bend) head.push({ type: 'pitch', bend: s.bend, t: 0 });
+  for (const e of s.sounding) {
+    head.push({ ...e, up: undefined, t: 0 });
+    if (e.up) head.push({ type: 'off', note: e.note, t: 0 });
+  }
+  return head.concat(events.filter(e => e.t >= at).map(e => ({ ...e, t: e.t - at })));
+}
+
+/**
+ * The take cut, if needed, so its text fits in `room` characters. `keep` 'first' keeps the beginning (a song
+ * opened from a file), 'last' the end (a recording: the warm-up goes, what was just played stays). Returns
+ * {text, events, end, cut, from} where events and end are what the link holds and `from` is where it starts.
+ */
+export async function fitSong(events, end, settings, room, keep = 'first') {
   let text = await songText(events, end, settings);
-  if (text.length <= room) return { text, events, end, cut: false };
-  // binary search the latest end time that fits
-  let lo = 0, hi = end;
-  let best = { text: await songText([], 0, settings), events: [], end: 0 };
-  while (hi - lo > 50) {
-    const mid = (lo + hi) / 2, part = events.filter(e => e.t < mid);
-    const t = await songText(part, mid, settings);
-    if (t.length <= room) { lo = mid; best = { text: t, events: part, end: mid }; } else hi = mid;
+  if (text.length <= room) return { text, events, end, cut: false, from: 0 };
+  let best = { text: await songText([], 0, settings), events: [], end: 0, from: end };
+  if (keep === 'last') {   // binary search the earliest start that fits
+    let lo = 0, hi = end;
+    while (hi - lo > 50) {
+      const mid = (lo + hi) / 2, part = slice(events, mid);
+      const t = await songText(part, end - mid, settings);
+      if (t.length <= room) { hi = mid; best = { text: t, events: part, end: end - mid, from: mid }; } else lo = mid;
+    }
+  } else {                 // binary search the latest end that fits
+    let lo = 0, hi = end;
+    while (hi - lo > 50) {
+      const mid = (lo + hi) / 2, part = events.filter(e => e.t < mid);
+      const t = await songText(part, mid, settings);
+      if (t.length <= room) { lo = mid; best = { text: t, events: part, end: mid, from: 0 }; } else hi = mid;
+    }
   }
   return { ...best, cut: true };
 }

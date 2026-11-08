@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pack, unpack, playable, songText, readSong, fitSong, springSteps, LINK_CAP, TICK } from '../js/song.js';
+import { pack, unpack, playable, songText, readSong, fitSong, springSteps, stateAt, LINK_CAP, TICK } from '../js/song.js';
 import { NOTES, BASE_FREQS } from '../js/notes.js';
 
 const SET = { loopStart: 0.26, loopEnd: 0.46, crossfade: 0.02, grainDur: 0.1, grainOverlap: 0.5, tuning: 440 };
@@ -153,6 +153,35 @@ describe('song in a link', () => {
     const back = unpack(old);
     expect(back.settings.tuning).toBe(440);
     expect(back.events.map(e => [e.type, e.note, e.t])).toEqual([['on', 'A4', 0], ['off', 'A4', 500]]);
+  });
+
+  it('a recording too long for a link keeps its last part, starting as it stood', async () => {
+    const { events, end } = expressivePiece(8);
+    const fit = await fitSong(events, end, SET, ROOM, 'last');
+    expect(fit.cut).toBe(true);
+    expect(fit.text.length).toBeLessThanOrEqual(ROOM);
+    expect(fit.from).toBeGreaterThan(0);
+    expect(fit.from + fit.end).toBe(end);
+    const back = await readSong(fit.text);
+    const lastOn = events.filter(e => e.type === 'on').at(-1);
+    expect(back.events.filter(e => e.type === 'on').at(-1).note).toBe(lastOn.note);   // the end is there
+    const first = back.events.find(e => e.type === 'sustain_on');
+    expect(first).toBeTruthy();
+  });
+
+  it('knows what is sounding at any moment, for starting in the middle', () => {
+    const p = performer();
+    p.on('C4', 0, 0); p.ev.push({ type: 'sustain_on', t: 100 }); p.off('C4', 200);   // held by the pedal
+    p.on('E4', 0, 300);                                                                // key still down
+    p.on('G4', 0, 50); p.off('G4', 80);                                                // over before the pedal
+    p.ev.push({ type: 'pitch', bend: 0.5, t: 350 });
+    const evs = playable(p.ev.sort((a, b) => a.t - b.t));
+    const s = stateAt(evs, 400);
+    expect(s.pedal).toBe(true);
+    expect(s.bend).toBe(0.5);
+    expect(s.sounding.map(e => [e.note, e.up])).toEqual([['C4', true], ['E4', false]]);
+    p.ev.push({ type: 'sustain_off', t: 500 });
+    expect(stateAt(playable(p.ev), 600).sounding.map(e => e.note)).toEqual(['E4']);
   });
 
   it('rejects a damaged link', async () => {

@@ -11,7 +11,7 @@ import {
   noteBufs,
 } from './audio.js';
 import { noteMap } from './notes.js';
-import { playable, songText, readSong, fitSong, fmtTime, LINK_CAP } from './song.js';
+import { playable, songText, readSong, fitSong, stateAt, fmtTime, LINK_CAP } from './song.js';
 import { fromMidi, toMidi } from './midi.js';
 
 // ── Loop waveform canvas ──────────────────────────────────────────────
@@ -323,19 +323,17 @@ export function initPitchWheel() {
   renderWheel();
 }
 
-// ── Transport (record / play / stop / clear / share) ─────────────────
-// SHARE makes a link (song.js) or saves a MIDI file (midi.js), chosen with LINK / MIDI. Recording for a link
-// keeps the take as the link holds it, so what plays here is what the link plays, and stops itself before the
-// link would pass LINK_CAP. Recording for MIDI, or opening a MIDI file, has no length limit; a link made from
-// such a take holds as much as fits (the status says how much).
-const shareMode = () => document.querySelector('input[name="shareAs"]:checked')?.value || 'link';
+// ── Transport (record / play / pause / seek / open / save / share) ────────
+// A take is kept whole, however long. SAVE writes all of it as a MIDI file (midi.js); OPEN reads one. SHARE puts
+// it in a link (song.js); a take too long for a link gives the link as much as fits: a recording its last part
+// (the warm-up goes, what was just played stays), a file its first. The status says which.
 
 const settingsNow = () => ({ loopStart: state.loopStart, loopEnd: state.loopEnd, crossfade: state.crossfade, grainDur: state.grainDur, grainOverlap: state.grainOverlap, tuning: state.tuning });
 const linkBase = () => location.origin + location.pathname + '#song=';
 const linkRoom = () => LINK_CAP - linkBase().length;
-const FULL_MARGIN = 250;   // characters: stop a little early, a second of dense playing fits in this
+const SKIP_MS = 10000;   // ⏪ / ⏩
 
-let _status = () => {}, _setReady = () => {}, _forgetFile = () => {};
+let _status = () => {}, _setTake = () => {};
 const toastTimers = {};
 function popup(id, text, ms) {
   const el = document.getElementById(id);
@@ -352,9 +350,7 @@ export async function loadSongFromLink() {
   try {
     const song = await readSong(m[1]);
     applySettings(song.settings);
-    state.recEvents = song.events; state.recEnd = song.end; state.songText = m[1];
-    _forgetFile();
-    _setReady(true);
+    _setTake(song.events, song.end, { kind: 'link', link: { text: m[1], cut: false } });
     _status('song loaded · ' + fmtTime(song.end) + ' · press PLAY');
     popup('playToast', 'SONG LOADED · ' + fmtTime(song.end), 5000);
     document.getElementById('btnPlay').classList.add('ready');   // glows until played
@@ -374,190 +370,171 @@ function applySettings(st) {
 }
 
 export function initTransport(onRefresh, onStatus) {
-  const btnRecord = document.getElementById('btnRecord');
-  const btnPlay   = document.getElementById('btnPlay');
-  const btnLoop   = document.getElementById('btnLoop');
-  const btnStop   = document.getElementById('btnStop');
-  const btnClear  = document.getElementById('btnClear');
-  const btnShare  = document.getElementById('btnShare');
+  const $ = id => document.getElementById(id);
+  const btnRecord = $('btnRecord'), btnPlay = $('btnPlay'), btnLoop = $('btnLoop'), btnStop = $('btnStop');
+  const btnBack = $('btnBack'), btnFwd = $('btnFwd'), btnClear = $('btnClear');
+  const btnOpen = $('btnOpen'), btnSave = $('btnSave'), btnShare = $('btnShare');
+  const seek = $('seek');
   _status = onStatus;
-  _setReady = on => { btnPlay.disabled = btnLoop.disabled = btnShare.disabled = !on; };
-  let watch = null, recSettings = null;
 
-  // progress while playing: the bar under the status and the time
-  let progTimer = null;
-  const prog = document.getElementById('progress'), progFill = document.getElementById('progFill');
-  function showProgress(total) {
-    const t0 = performance.now();
-    prog.classList.add('on');
-    clearInterval(progTimer);
-    const tick = () => {
-      const t = Math.min(total, performance.now() - t0);
-      progFill.style.width = (100 * t / total) + '%';
-      onStatus('PLAYING ' + fmtTime(t) + ' / ' + fmtTime(total), 'playing');
-    };
-    tick(); progTimer = setInterval(tick, 250);
+  // the take: what's loaded or just recorded, where it came from, and its link (made when first shared)
+  let take = { kind: 'none' }, evs = [], total = 0, pos = 0, pbStart = 0, watch = null, recSettings = null;
+  let midiFile = null, fileName = '';
+
+  function setTake(events, end, info) {
+    state.recEvents = events; state.recEnd = end;
+    take = info;
+    evs = playable(events);
+    total = Math.max(end || 0, evs.reduce((m, e) => Math.max(m, e.t), 0));
+    pos = 0;
+    const has = events.some(e => e.type === 'on');
+    for (const b of [btnPlay, btnLoop, btnBack, btnFwd, btnSave, btnShare]) b.disabled = !has;
+    seek.hidden = !has;
+    seek.max = String(Math.max(1, Math.round(total)));
+    showPos(0);
   }
-  function hideProgress() { clearInterval(progTimer); progTimer = null; prog.classList.remove('on'); }
-
-  function startPb() {
-    if (!state.recEvents.length) return;
+  _setTake = setTake;
+  function clearTake() {
+    setTake([], 0, { kind: 'none' });
+    midiFile = null; fileName = '';
+    $('parts').hidden = true; $('partList').textContent = '';
     btnPlay.classList.remove('ready');
-    document.getElementById('playToast').classList.remove('show');
-    state.isPlay = true;
-    btnPlay.classList.add('active');
-    onStatus('PLAYING...', 'playing');
-    const evs = playable(state.recEvents);
-    const maxT = Math.max(state.recEnd || 0, evs.reduce((m, e) => Math.max(m, e.t), 0));
-    showProgress(maxT);
-    document.getElementById('pitchThumb').classList.add('playback');
-    evs.forEach(ev => {
+    if (location.hash) history.replaceState(null, '', location.pathname);
+  }
+
+  // ── playing ──
+  const now = () => (state.isPlay ? Math.min(total, performance.now() - pbStart) : pos);
+  let seeking = false, progTimer = null;
+  function showPos(t) {
+    if (!seeking) seek.value = String(Math.round(t));
+    seek.style.setProperty('--fill', (total ? 100 * t / total : 0) + '%');
+    seek.setAttribute('aria-valuetext', fmtTime(t) + ' of ' + fmtTime(total));
+  }
+  function tick() {
+    const t = now();
+    showPos(t);
+    onStatus((state.isPlay ? 'PLAYING ' : 'PAUSED ') + fmtTime(t) + ' / ' + fmtTime(total), state.isPlay ? 'playing' : '');
+  }
+  function playLabel() { btnPlay.innerHTML = state.isPlay ? '&#x275A;&#x275A; PAUSE' : '&#x25B6; PLAY'; }
+
+  function startPb(from = pos) {
+    if (!evs.length) return;
+    halt();
+    if (from >= total - 50) from = 0;
+    btnPlay.classList.remove('ready');
+    $('playToast').classList.remove('show');
+    state.isPlay = true; pbStart = performance.now() - from;
+    btnPlay.classList.add('active'); playLabel();
+    $('pitchThumb').classList.add('playback');
+    // start as the song stood at `from`: pedal, wheel, notes already sounding
+    const at = stateAt(evs, from);
+    if (at.pedal) pbSustainOn();
+    state.pitchBend = at.bend; renderWheel();
+    for (const e of at.sounding) {
+      const n = noteMap[e.note];
+      if (!n) continue;
+      pbNoteOn(n, e.freq, true, e.ls, e.le, e.dec, onRefresh);
+      if (e.up) pbNoteOff(n);
+    }
+    for (const ev of evs) {
+      if (ev.t < from) continue;
       state.timers.push(setTimeout(() => {
         if (ev.type === 'sustain_on')   { pbSustainOn();  return; }
         if (ev.type === 'sustain_off')  { pbSustainOff(); return; }
-        if (ev.type === 'pitch') {
-          state.pitchBend = ev.bend;
-          renderWheel();   // the wheel moves as it did when recorded
-          return;
-        }
+        if (ev.type === 'pitch') { state.pitchBend = ev.bend; renderWheel(); return; }   // the wheel moves as recorded
         const n = noteMap[ev.note];
         if (!n) return;
         if (ev.type === 'on')  pbNoteOn(n, ev.freq, true, ev.ls, ev.le, ev.dec, onRefresh);
         if (ev.type === 'off') pbNoteOff(n);
         onRefresh();
-      }, ev.t));
-    });
+      }, ev.t - from));
+    }
     state.timers.push(setTimeout(() => {
-      state.isPlay = false;
-      btnPlay.classList.remove('active');
-      stopAllPbVoices();
-      endPbVisuals();
-      if (state.loop) { state.timers = []; startPb(); } else onStatus('done');
-    }, maxT + 800));
+      halt(); pos = 0; showPos(0);
+      if (state.loop) startPb(0); else onStatus('done');
+    }, total - from + 800));
+    tick(); progTimer = setInterval(tick, 250);
   }
-
-  function stopPb() {
+  // stop the sound and the clock; the position stays wherever it's set next
+  function halt() {
     state.timers.forEach(clearTimeout);
     state.timers = [];
+    clearInterval(progTimer); progTimer = null;
     state.isPlay = false;
-    btnPlay.classList.remove('active');
+    btnPlay.classList.remove('active'); playLabel();
     stopAllPbVoices();
-    endPbVisuals();
+    state.pitchBend = 0; renderWheel();
+    $('pitchThumb').classList.remove('playback');
     onRefresh();
   }
-  function endPbVisuals() {
-    hideProgress();
-    state.pitchBend = 0; renderWheel();
-    document.getElementById('pitchThumb').classList.remove('playback');
+  function pause() { pos = now(); halt(); showPos(pos); tick(); }
+  function moveTo(t) {
+    t = Math.max(0, Math.min(total, t));
+    if (state.isPlay) startPb(t); else { pos = t; showPos(t); tick(); }
   }
 
+  // ── recording ──
   function startRec() {
-    btnPlay.classList.remove('ready');
-    state.recEvents = [];
-    state.songText = '';
-    forgetFile();
-    if (location.hash) history.replaceState(null, '', location.pathname);
+    halt();
+    clearTake();
     state.isRec = true;
     state.recStart = performance.now();
     recSettings = settingsNow();
-    state.loop = false;
-    btnLoop.classList.remove('active');
+    state.loop = false; btnLoop.classList.remove('active');
     btnRecord.classList.add('active');
     btnRecord.innerHTML = '&#x25CF; REC';
-    _setReady(false);
     onStatus('RECORDING 0:00', 'recording');
     boot();
-    // the link fills as you play: show how full, and stop before it's too long
+    // how much of the take a link would hold: once it's full, the link keeps the latest part
+    let full = false;
     watch = setInterval(async () => {
       if (!state.isRec) return;
       const t = performance.now() - state.recStart;
-      if (shareMode() === 'midi') { onStatus('RECORDING ' + fmtTime(t), 'recording'); return; }
-      const len = (await songText(state.recEvents, t, recSettings)).length;
-      if (!state.isRec) return;
-      if (len > linkRoom() - FULL_MARGIN) { finishRec('link full: recorded '); return; }
-      onStatus('RECORDING ' + fmtTime(t) + ' · LINK ' + Math.round(100 * len / linkRoom()) + '%', 'recording');
+      if (!full) {
+        const len = (await songText(state.recEvents, t, recSettings)).length;
+        if (!state.isRec) return;
+        full = len > linkRoom();
+        if (!full) { onStatus('RECORDING ' + fmtTime(t) + ' · LINK ' + Math.round(100 * len / linkRoom()) + '%', 'recording'); return; }
+      }
+      onStatus('RECORDING ' + fmtTime(t) + ' · LINK: LAST PART', 'recording');
     }, 1000);
   }
-
-  // stop recording and keep the take as its link holds it (cut to fit, if it ran over)
-  async function finishRec(msg = 'recorded ') {
+  async function finishRec() {
     if (!state.isRec) return;
     state.isRec = false;
     clearInterval(watch);
     btnRecord.classList.remove('active');
     btnRecord.innerHTML = '&#x23FA; REC';
     const end = performance.now() - state.recStart, raw = state.recEvents;
-    if (!raw.length) { onStatus('nothing recorded'); return; }
-    if (shareMode() === 'midi') {   // no link limit: keep every note as played
-      state.recEvents = raw; state.recEnd = end; state.songText = '';
-      _setReady(true);
-      onStatus(msg + fmtTime(end));
-      return;
-    }
-    const fit = await fitSong(raw, end, recSettings, linkRoom());
-    const song = await readSong(fit.text);
-    state.recEvents = song.events; state.recEnd = song.end; state.songText = fit.text;
-    _setReady(song.events.length > 0);
-    onStatus((fit.cut ? 'link full: recorded ' : msg) + fmtTime(song.end) + ' · LINK ' + Math.round(100 * fit.text.length / linkRoom()) + '%');
+    if (!raw.some(e => e.type === 'on')) { setTake([], 0, { kind: 'none' }); onStatus('nothing recorded'); return; }
+    const link = await makeLink(raw, end, recSettings, 'last');
+    setTake(raw, end, { kind: 'take', link });
+    onStatus('recorded ' + fmtTime(end) + ' · ' + linkNote(link));
   }
 
-  btnRecord.addEventListener('click', () => {
-    if (state.isPlay) stopPb();
-    if (state.isRec) finishRec(); else startRec();
-  });
-
-  btnPlay.addEventListener('click', () => {
-    if (state.isRec) return;
-    if (state.isPlay) { stopPb(); onStatus('stopped'); } else boot().then(startPb);
-  });
-
-  btnLoop.addEventListener('click', () => {
-    if (btnLoop.disabled) return;
-    state.loop = !state.loop;
-    btnLoop.classList.toggle('active', state.loop);
-    if (state.loop && !state.isPlay && state.recEvents.length) boot().then(startPb);
-  });
-
-  btnStop.addEventListener('click', () => {
-    if (state.isRec) finishRec();
-    else onStatus('stopped');
-    stopPb();
-    state.loop = false;
-    btnLoop.classList.remove('active');
-  });
-
-  btnClear.addEventListener('click', () => {
-    if (state.isPlay || state.isRec) return;
-    state.recEvents = [];
-    state.songText = '';
-    forgetFile();
-    _setReady(false);
-    btnPlay.classList.remove('ready');
-    state.loop = false;
-    btnLoop.classList.remove('active');
-    if (location.hash) history.replaceState(null, '', location.pathname);
-    onStatus('cleared');
-  });
+  // ── links ──
+  async function makeLink(events, end, settings, keep) {
+    const fit = await fitSong(events, end, settings, linkRoom(), keep);
+    return { text: fit.text, cut: fit.cut, keep, len: fit.end };
+  }
+  const linkNote = l => l.cut ? 'LINK · ' + (l.keep === 'last' ? 'LAST ' : 'FIRST ') + fmtTime(l.len)
+    : 'LINK ' + Math.round(100 * (linkBase().length + l.text.length) / LINK_CAP) + '%';
 
   btnShare.addEventListener('click', async () => {
     if (!state.recEvents.length) return;
-    if (shareMode() === 'midi') return saveMidi();
-    // a take made for a link already is one; anything else gets as much as fits
-    if (!state.songText) {
-      const fit = await fitSong(state.recEvents, state.recEnd, settingsNow(), linkRoom());
-      state.songText = fit.text; linkCut = fit.cut ? fit.end : 0;
-    }
-    const cutAt = linkCut;
-    const url = linkBase() + state.songText;
+    if (!take.link) take.link = await makeLink(state.recEvents, state.recEnd, settingsNow(), take.kind === 'take' ? 'last' : 'first');
+    const l = take.link, url = linkBase() + l.text;
     history.replaceState(null, '', url);
     let copied = false;
     try { await navigator.clipboard.writeText(url); copied = true; } catch (_) {}
-    const part = cutAt ? ' · holds the first ' + fmtTime(cutAt) + ' of ' + fmtTime(state.recEnd) : '';
+    const part = l.cut ? ' · ' + (l.keep === 'last' ? 'last ' : 'first ') + fmtTime(l.len) + ' of ' + fmtTime(state.recEnd) : '';
     onStatus((copied ? 'link copied' : 'link in the address bar') + part + ' · ' + url.length.toLocaleString('en-US') + ' chars');
-    popup('shareToast', (copied ? 'LINK COPIED!' : 'LINK IN ADDRESS BAR') + (cutAt ? ' · FIRST ' + fmtTime(cutAt) : ''), cutAt ? 4000 : 2600);
+    popup('shareToast', (copied ? 'LINK COPIED!' : 'LINK IN ADDRESS BAR') + (l.cut ? ' · ' + (l.keep === 'last' ? 'LAST ' : 'FIRST ') + fmtTime(l.len) : ''), l.cut ? 4000 : 2600);
   });
 
-  function saveMidi() {
+  // ── files ──
+  btnSave.addEventListener('click', () => {
+    if (!state.recEvents.length) return;
     const bytes = toMidi(state.recEvents, state.recEnd, settingsNow());
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([bytes], { type: 'audio/midi' }));
@@ -565,57 +542,36 @@ export function initTransport(onRefresh, onStatus) {
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
     onStatus('saved ' + a.download);
-    popup('shareToast', 'MIDI SAVED!', 2600);
-  }
-
-  // LINK / MIDI: what SHARE makes
-  const shareLabel = () => {
-    btnShare.innerHTML = shareMode() === 'midi' ? '&#x2913; SAVE' : '&#x2934; SHARE';
-  };
-  document.querySelectorAll('input[name="shareAs"]').forEach(r => r.addEventListener('change', () => {
-    shareLabel();
-    try { localStorage.setItem('meowpiano.shareAs', shareMode()); } catch (_) {}
-  }));
-  try {
-    const saved = localStorage.getItem('meowpiano.shareAs');
-    const r = saved && document.querySelector(`input[name="shareAs"][value="${saved}"]`);
-    if (r) r.checked = true;
-  } catch (_) {}
-  shareLabel();
+    popup('saveToast', 'MIDI SAVED!', 2600);
+  });
 
   // OPEN: a MIDI file becomes the take; with more than one instrument, choose which to play
-  let midiFile = null, fileName = '', linkCut = 0;
-  const parts = document.getElementById('parts'), partList = document.getElementById('partList');
-  const fileInput = document.getElementById('midiFile');
-  function forgetFile() { midiFile = null; fileName = ''; linkCut = 0; parts.hidden = true; partList.textContent = ''; }
-  _forgetFile = forgetFile;
-  document.getElementById('btnOpen').addEventListener('click', () => {
+  const parts = $('parts'), partList = $('partList'), fileInput = $('midiFile');
+  btnOpen.addEventListener('click', () => {
     if (state.isRec) return;
     fileInput.value = ''; fileInput.click();
   });
   fileInput.addEventListener('change', async () => {
     const f = fileInput.files[0];
     if (!f) return;
-    if (state.isPlay) stopPb();
     let file;
     try { file = fromMidi(new Uint8Array(await f.arrayBuffer())); } catch (_) { onStatus("couldn't read that MIDI file"); return; }
     if (!file.parts.length) { onStatus('no notes in that MIDI file'); return; }
-    forgetFile();
+    halt();
+    clearTake();
     midiFile = file; fileName = f.name.replace(/\.midi?$/i, '');
     if (file.settings) applySettings({ ...settingsNow(), ...file.settings });
-    partList.textContent = '';
     for (const p of file.parts) {
       const label = document.createElement('label');
       const box = document.createElement('input');
       box.type = 'checkbox'; box.value = p.id; box.checked = !p.drums;
-      box.addEventListener('change', () => { if (state.isPlay) stopPb(); useParts(); });
+      box.addEventListener('change', () => { halt(); useParts(); });
       const count = document.createElement('span');
       count.className = 'count'; count.textContent = '· ' + p.notes;
       label.append(box, p.name + ' ', count);
       partList.append(label);
     }
     parts.hidden = file.parts.length < 2;
-    if (location.hash) history.replaceState(null, '', location.pathname);
     useParts();
     popup('playToast', 'SONG LOADED · ' + fmtTime(state.recEnd), 5000);
     btnPlay.classList.add('ready');
@@ -625,9 +581,49 @@ export function initTransport(onRefresh, onStatus) {
     let ids = [...partList.querySelectorAll('input:checked')].map(b => b.value);
     if (midiFile.parts.length === 1) ids = [midiFile.parts[0].id];
     const { events, end } = midiFile.build(ids);
-    state.recEvents = events; state.recEnd = end; state.songText = ''; linkCut = 0;
+    setTake(events, end, { kind: 'file' });
+    if (location.hash) history.replaceState(null, '', location.pathname);
     const notes = events.filter(e => e.type === 'on').length;
-    _setReady(notes > 0);
     onStatus(fileName + ' · ' + fmtTime(end) + ' · ' + notes.toLocaleString('en-US') + ' notes' + (notes ? ' · press PLAY' : ''));
   }
+
+  // ── buttons ──
+  btnRecord.addEventListener('click', () => { if (state.isRec) finishRec(); else startRec(); });
+  btnPlay.addEventListener('click', () => {
+    if (state.isRec) return;
+    if (state.isPlay) pause(); else boot().then(() => startPb());
+  });
+  btnBack.addEventListener('click', () => moveTo(now() - SKIP_MS));
+  btnFwd.addEventListener('click', () => moveTo(now() + SKIP_MS));
+  btnLoop.addEventListener('click', () => {
+    if (btnLoop.disabled) return;
+    state.loop = !state.loop;
+    btnLoop.classList.toggle('active', state.loop);
+    if (state.loop && !state.isPlay && evs.length) boot().then(() => startPb());
+  });
+  btnStop.addEventListener('click', () => {
+    if (state.isRec) finishRec();
+    else onStatus('stopped');
+    halt(); pos = 0; showPos(0);
+    state.loop = false;
+    btnLoop.classList.remove('active');
+  });
+  btnClear.addEventListener('click', () => {
+    if (state.isPlay || state.isRec) return;
+    clearTake();
+    state.loop = false;
+    btnLoop.classList.remove('active');
+    onStatus('cleared');
+  });
+
+  // the seek bar: drag to look, let go to move there
+  seek.addEventListener('pointerdown', () => { seeking = true; });
+  seek.addEventListener('input', () => {
+    const t = +seek.value;
+    seek.style.setProperty('--fill', (100 * t / total) + '%');
+    if (!state.isPlay) { pos = t; tick(); }
+  });
+  seek.addEventListener('change', () => { seeking = false; moveTo(+seek.value); });
+
+  setTake([], 0, { kind: 'none' });
 }

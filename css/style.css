@@ -68,7 +68,8 @@ body::before {
 .key.black .key-label { color: #8070C0; font-size: 6px; }
 .key.black.pressed { background: linear-gradient(180deg, #FF2D78 0%, #C40055 100%); box-shadow: 0 0 14px rgba(255,45,120,1); transform: translateY(1px); }
 .key.black.pressed .key-label, .key.black.pressed .key-note { color: #fff; opacity: 0.9; }
-.controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.controls { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.ctl-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
 .btn { font-family: "Press Start 2P", monospace; font-size: 8px; padding: 10px 14px; border: 2px solid; border-radius: 8px; cursor: pointer; background: transparent; }
 .btn:active { transform: scale(0.96); }
 .btn-record { color: #FF5555; border-color: #FF5555; }
@@ -105,9 +106,13 @@ body::before {
 .status { font-size: 8px; color: #8373A4; min-height: 16px; text-align: center; }
 .status.recording { color: #FF5555; animation: blink 0.9s step-end infinite; }
 .status.playing { color: #44FF88; }
-.progress { width: min(320px, 80vw); height: 4px; border-radius: 2px; background: rgba(68,255,136,0.12); visibility: hidden; margin-top: -6px; }
-.progress.on { visibility: visible; }
-#progFill { height: 100%; width: 0; border-radius: 2px; background: #44FF88; box-shadow: 0 0 8px rgba(68,255,136,0.8); }
+/* the seek bar: shows whenever there's a song; drag or click to move, arrow keys when focused */
+.seek { -webkit-appearance: none; appearance: none; width: min(420px, 86vw); height: 18px; margin: -8px 0 0; background: transparent; cursor: pointer; --fill: 0%; }
+.seek::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(90deg, #44FF88 var(--fill), rgba(68,255,136,0.15) var(--fill)); }
+.seek::-moz-range-track { height: 4px; border-radius: 2px; background: linear-gradient(90deg, #44FF88 var(--fill), rgba(68,255,136,0.15) var(--fill)); }
+.seek::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; margin-top: -4px; border-radius: 50%; background: #44FF88; box-shadow: 0 0 8px rgba(68,255,136,0.9); }
+.seek::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: #44FF88; box-shadow: 0 0 8px rgba(68,255,136,0.9); }
+.seek:focus-visible { outline: 2px solid #44FF88; outline-offset: 4px; border-radius: 4px; }
 .key.white.played { background: linear-gradient(180deg, #9CFFC0 0%, #44E080 100%); box-shadow: 0 0 16px rgba(68,255,136,0.9); transform: translateY(2px); }
 .key.black.played { background: linear-gradient(180deg, #44FF88 0%, #10A050 100%); box-shadow: 0 0 14px rgba(68,255,136,1); transform: translateY(1px); }
 .key.played .key-label, .key.played .key-note { color: #080B14; opacity: 0.8; }
@@ -220,12 +225,6 @@ body::before {
 
 /* opening and saving MIDI files */
 .btn-open { color: #44DDFF; border-color: #44DDFF; font-size: 7px; }
-.share-as { display: inline-flex; border: 2px solid #FFE066; border-radius: 8px; padding: 0; margin: 0; overflow: hidden; }
-.share-as label { font-family: "Press Start 2P", monospace; font-size: 7px; color: #FFE066; padding: 9px 9px; cursor: pointer; }
-.share-as input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.share-as label:has(input:checked) { background: #FFE066; color: #080B14; }
-.share-as label:has(input:focus-visible) { outline: 2px solid #fff; outline-offset: -4px; }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .parts { border: 2px solid #2A1F44; border-radius: 8px; padding: 6px 12px 8px; margin: 0; max-width: min(640px, 92vw); }
 .parts legend { font-family: "Press Start 2P", monospace; font-size: 6px; color: #8173AB; letter-spacing: 1px; padding: 0 6px; }
 #partList { display: flex; flex-wrap: wrap; gap: 6px 14px; justify-content: center; }
@@ -234,3 +233,7 @@ body::before {
 #partList .count { color: #8373A4; }
 .btn-midiin { color: #44DDFF; border-color: #44DDFF; font-size: 7px; }
 .btn-midiin[aria-pressed="true"] { background: #44DDFF; color: #080B14; box-shadow: 0 0 12px rgba(68,221,255,0.7); }
+.btn-skip { color: #44FF88; border-color: #44FF88; font-size: 7px; }
+.btn-skip:disabled, .btn-open:disabled { opacity: 0.3; cursor: not-allowed; }
+.toast.toast-save { background: #44DDFF; box-shadow: 0 0 18px rgba(68,221,255,0.75); }
+.toast.toast-save::after { border-top-color: #44DDFF; }

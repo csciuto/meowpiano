@@ -37,28 +37,21 @@ test('open a MIDI file: instruments listed, drums off, choose what plays', async
   await expect(page.locator('#parts')).toBeHidden();
 });
 
-test('MIDI saves a file that opens to the same notes and settings @desktop', async ({ page }) => {
+test('SAVE writes a MIDI file that opens to the same notes and settings @desktop', async ({ page }) => {
   await page.locator('#tuneSlider').evaluate(el => { el.value = '432'; el.dispatchEvent(new Event('input')); });
-  await page.locator('label:has(input[value="midi"])').click();
-  await expect(page.locator('#btnShare')).toHaveText(/SAVE/);
   await page.keyboard.press('Enter');
-  await page.waitForTimeout(1100);
-  await expect(page.locator('#status')).toHaveText(/^RECORDING 0:0\d$/);   // no link meter
   for (const k of ['a', 'h']) { await page.keyboard.down(k); await page.waitForTimeout(120); await page.keyboard.up(k); }
   await page.keyboard.press('Enter');
-  const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#btnShare').click()]);
+  const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#btnSave').click()]);
   expect(download.suggestedFilename()).toMatch(/^meowpiano-\d{8}-\d{4}\.mid$/);
-  await expect(page.locator('#shareToast')).toHaveText('MIDI SAVED!');
+  await expect(page.locator('#saveToast')).toHaveText('MIDI SAVED!');
   const file = fromMidi(new Uint8Array(readFileSync(await download.path())));
   expect(file.settings.tuning).toBe(432);
   const { events } = file.build([file.parts[0].id]);
   expect(events.filter(e => e.type === 'on').map(e => e.note)).toEqual(['C4', 'A4']);
-  // and the choice is remembered
-  await page.reload();
-  await expect(page.locator('#btnShare')).toHaveText(/SAVE/);
 });
 
-test('a link from an opened file, and a file too long for a link says how much it holds @desktop', async ({ page, context }) => {
+test('a link from an opened file; a file too long for a link keeps its first part @desktop', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await open(page);
   await page.locator('#btnShare').click();
@@ -84,7 +77,7 @@ test('a link from an opened file, and a file too long for a link says how much i
   await expect(page.locator('#parts')).toBeHidden();   // one instrument: nothing to choose
   expect(page.url()).not.toContain('#song=');
   await page.locator('#btnShare').click();
-  await expect(page.locator('#status')).toHaveText(/link copied · holds the first \d+:\d\d of 20:00/, { timeout: 15000 });
+  await expect(page.locator('#status')).toHaveText(/link copied · first \d+:\d\d of 20:00/, { timeout: 15000 });
   await expect(page.locator('#shareToast')).toHaveText(/LINK COPIED! · FIRST \d+:\d\d/);
   expect(page.url().length).toBeLessThanOrEqual(8000);
 });
@@ -132,4 +125,44 @@ test('a MIDI keyboard plays, bends, holds the pedal and records @desktop', async
   // remembered: the next visit reconnects without the button
   await page.reload();
   await expect(page.locator('#btnMidiIn')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('pause, ⏪ ⏩, and the seek bar start the song anywhere @desktop', async ({ page }) => {
+  // a minute of C major chords, one every two seconds, each held a second and a half
+  const file = await page.evaluate(async () => {
+    const { toMidi } = await import('/js/midi.js');
+    const ev = [];
+    for (let t = 0; t < 60000; t += 2000) for (const [note, freq] of [['C4', 261.63], ['E4', 329.63], ['G4', 392]]) ev.push({ type: 'on', note, freq, ls: 0.26, le: 0.46, t }, { type: 'off', note, t: t + 1500 });
+    ev.sort((a, b) => a.t - b.t);
+    return Array.from(toMidi(ev, 60000, { loopStart: 0.26, loopEnd: 0.46, crossfade: 0.02, grainDur: 0.1, grainOverlap: 0.5, tuning: 440 }));
+  });
+  await page.setInputFiles('#midiFile', { name: 'chords.mid', mimeType: 'audio/midi', buffer: Buffer.from(file) });
+  await expect(page.locator('#seek')).toBeVisible();
+  const voices = () => st(page, 'Object.keys(state.pbVoices).length');
+
+  await page.locator('#btnPlay').click();
+  await expect(page.locator('#btnPlay')).toHaveText(/PAUSE/);
+  await page.waitForTimeout(600);
+  await page.locator('#btnPlay').click();                              // pause
+  await expect(page.locator('#btnPlay')).toHaveText(/PLAY/);
+  await expect(page.locator('#status')).toHaveText('PAUSED 0:01 / 1:00');
+  expect(await voices()).toBe(0);
+
+  await page.locator('#btnFwd').click();
+  await expect(page.locator('#status')).toHaveText('PAUSED 0:11 / 1:00');
+  await page.locator('#btnBack').click();
+  await page.locator('#btnBack').click();
+  await expect(page.locator('#status')).toHaveText('PAUSED 0:00 / 1:00');
+
+  // drag to 30.5 s, in the middle of a held chord: playing from there sounds it at once
+  await page.locator('#seek').evaluate(el => { el.value = '30500'; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); });
+  await expect(page.locator('#status')).toHaveText(/PAUSED 0:3[01] \/ 1:00/);
+  await page.locator('#btnPlay').click();
+  await expect.poll(voices, { timeout: 500 }).toBe(3);
+  await expect(page.locator('#status')).toHaveText(/PLAYING 0:3\d \/ 1:00/);
+  await page.locator('#btnFwd').click();                               // while playing
+  await expect(page.locator('#status')).toHaveText(/PLAYING 0:4\d \/ 1:00/);
+  await page.locator('#btnStop').click();
+  await expect(page.locator('#seek')).toHaveValue('0');
+  expect(await voices()).toBe(0);
 });

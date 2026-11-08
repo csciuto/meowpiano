@@ -103,30 +103,35 @@
     </div>
   </div>
   <div id="status" class="status"></div>
-  <div class="progress" id="progress" aria-hidden="true"><div id="progFill"></div></div>
+  <input type="range" class="seek" id="seek" min="0" max="1" step="100" value="0" aria-label="Position" hidden>
   <fieldset class="parts" id="parts" hidden><legend>PLAY</legend><div id="partList"></div></fieldset>
   <div class="controls">
-    <button class="btn btn-record" id="btnRecord">&#x23FA; REC</button>
-    <span class="pop-wrap">
-      <button class="btn btn-play"   id="btnPlay" disabled>&#x25B6; PLAY</button>
-      <span class="toast toast-play" id="playToast" role="status" aria-live="polite"></span>
-    </span>
-    <button class="btn btn-loop"   id="btnLoop" disabled>&#x21BA; LOOP</button>
-    <button class="btn" id="btnSustain" style="font-size:8px;padding:10px 14px;color:#44DDFF;border-color:#44DDFF;letter-spacing:1px">SUSTAIN</button>
-    <button class="btn btn-stop"  id="btnStop">&#x25A0; STOP</button>
-    <button class="btn btn-clear" id="btnClear">&#x2715; CLR</button>
-    <button class="btn btn-open" id="btnOpen">&#x2912; OPEN</button>
-    <button class="btn btn-midiin" id="btnMidiIn" aria-pressed="false">&#x2328; MIDI IN</button>
-    <input type="file" id="midiFile" accept=".mid,.midi,audio/midi,audio/x-midi" hidden>
-    <fieldset class="share-as" id="shareAs">
-      <legend class="sr-only">Share as</legend>
-      <label><input type="radio" name="shareAs" value="link" checked> LINK</label>
-      <label><input type="radio" name="shareAs" value="midi"> MIDI</label>
-    </fieldset>
-    <span class="pop-wrap">
-      <button class="btn btn-share" id="btnShare" disabled>&#x2934; SHARE</button>
-      <span class="toast toast-end" id="shareToast" role="status" aria-live="polite"></span>
-    </span>
+    <div class="ctl-group">
+      <button class="btn btn-record" id="btnRecord">&#x23FA; REC</button>
+      <button class="btn btn-skip" id="btnBack" aria-label="Back 10 seconds" disabled>&#x25C0;&#x25C0; 10</button>
+      <span class="pop-wrap">
+        <button class="btn btn-play" id="btnPlay" disabled>&#x25B6; PLAY</button>
+        <span class="toast toast-play" id="playToast" role="status" aria-live="polite"></span>
+      </span>
+      <button class="btn btn-skip" id="btnFwd" aria-label="Forward 10 seconds" disabled>10 &#x25B6;&#x25B6;</button>
+      <button class="btn btn-stop" id="btnStop">&#x25A0; STOP</button>
+      <button class="btn btn-loop" id="btnLoop" disabled>&#x21BA; LOOP</button>
+    </div>
+    <div class="ctl-group">
+      <button class="btn" id="btnSustain" style="font-size:8px;padding:10px 14px;color:#44DDFF;border-color:#44DDFF;letter-spacing:1px">SUSTAIN</button>
+      <button class="btn btn-midiin" id="btnMidiIn" aria-pressed="false">MIDI IN</button>
+      <button class="btn btn-clear" id="btnClear">&#x2715; CLR</button>
+      <button class="btn btn-open" id="btnOpen">&#x2912; OPEN</button>
+      <input type="file" id="midiFile" accept=".mid,.midi,audio/midi,audio/x-midi" hidden>
+      <span class="pop-wrap">
+        <button class="btn btn-open" id="btnSave" disabled>&#x2913; SAVE</button>
+        <span class="toast toast-save" id="saveToast" role="status" aria-live="polite"></span>
+      </span>
+      <span class="pop-wrap">
+        <button class="btn btn-share" id="btnShare" disabled>&#x2934; SHARE</button>
+        <span class="toast toast-end" id="shareToast" role="status" aria-live="polite"></span>
+      </span>
+    </div>
   </div>
   <div class="key-guide">
     WHITE: <span>A S D F G H J K L ; ' Z X C V</span><br>

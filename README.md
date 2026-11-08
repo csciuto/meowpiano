@@ -98,14 +98,16 @@ Drag the wheel on the right side of the keyboard up or down to bend pitch up to 
 | Button | Action |
 |--------|--------|
 | REC | Start recording; click again to stop |
-| PLAY | Play back the recording |
+| PLAY / PAUSE | Play the song, or pause it where it is |
 | LOOP | Toggle looped playback |
 | STOP | Stop playback or end recording |
 | CLR | Clear the current recording (and its link) |
+| ◀◀ 10 / 10 ▶▶ | Back or forward 10 seconds |
+| Seek bar | Drag or click to move anywhere in the song (arrow keys when focused) |
 | OPEN | Open a MIDI file (`.mid`) to play |
 | MIDI IN | Play from a MIDI keyboard (lit while one is connected) |
-| LINK / MIDI | What SHARE makes: a link, or a MIDI file |
-| SHARE / SAVE | Put the recording in the address and copy the link, or save it as a `.mid` file |
+| SAVE | Save the song as a MIDI file (`.mid`), all of it |
+| SHARE | Put the song in the address and copy the link |
 | SUSTAIN | Sustain pedal while pressed |
 
 ### Sharing a recording
@@ -116,8 +118,8 @@ link loads the song ready to play. During playback the keys light up green, the 
 
 Links stop at 8,000 characters, the most that chat apps and servers reliably pass along. That's about five
 minutes of expressive playing (`tests/song.test.js` checks a five-minute piece of ~1,700 notes, a pedal change
-every bar and a bend every other bar). While recording, the status shows how full the link is, and recording
-stops by itself when it's full; for a longer piece, record a second part. The format is in `js/song.js`:
+every bar and a bend every other bar). While recording, the status shows how full the link is; past full it
+keeps recording, and the link keeps the last part (`LINK: LAST PART`). SAVE keeps the whole take. The format is in `js/song.js`:
 note starts in 5 ms steps, held lengths in 10 ms steps, pitch-wheel drags kept to within 4 cents, then
 compressed.
 
@@ -136,12 +138,12 @@ named from the file, with its note count; all are on except drums (channel 10), 
 drum sounds rather than pitches. The checked instruments play as one meow piano: notes fold into the
 piano's reach (C2–C8), and every note plays at one loudness (velocity is ignored).
 
-With **MIDI** chosen, SHARE becomes **SAVE** and writes a one-track `.mid` file: notes, the pedal (CC64) and
+**SAVE** writes a one-track `.mid` file: notes, the pedal (CC64) and
 the pitch wheel (pitch bend, ±2 semitones). The loop points, grain settings and tuning go in as text events
 that start `meowpiano`, so a file saved here opens with the same sound; other programs ignore them.
-Recording with MIDI chosen has no length limit. A link made from a long take or file holds as much as fits,
-and the status says how much (`holds the first 4:51 of 12:30`). Unchecking instruments makes a song fit.
-The format is in `js/midi.js`; the choice of LINK or MIDI is remembered in the browser.
+Recording has no length limit, and SAVE keeps everything. A link holds as much as fits: for a recording, the
+last part (the warm-up goes, what was just played stays); for an opened file, the first. The status says
+which (`LINK · LAST 4:51`). Unchecking instruments makes a song fit. The format is in `js/midi.js`.
 
 ### Settings panel
 

@@ -81,12 +81,13 @@ test('record, share, and the link plays the same notes in a new tab @desktop', a
   await expect.poll(() => st(other, 'Object.keys(state.pbVoices).length'), { timeout: 3000 }).toBeGreaterThan(0);
   // you can see it play: keys light up, the progress bar runs, the wheel is in playback color
   await expect(other.locator('.key.played').first()).toBeVisible();
-  await expect(other.locator('#progress')).toHaveClass(/on/);
+  await expect(other.locator('#seek')).toBeVisible();
   await expect(other.locator('#status')).toHaveText(/PLAYING 0:0\d \/ 0:0\d/);
   await expect(other.locator('#pitchThumb')).toHaveClass(/playback/);
   await other.locator('#btnStop').click();
   await expect(other.locator('.key.played')).toHaveCount(0);
-  await expect(other.locator('#progress')).not.toHaveClass(/on/);
+  await expect(other.locator('#seek')).toHaveValue('0');
+  await expect(other.locator('#pitchThumb')).not.toHaveClass(/playback/);
 });
 
 test('a damaged link says so', async ({ page }) => {

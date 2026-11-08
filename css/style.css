@@ -247,3 +247,8 @@ body::before {
 .song-name::placeholder { color: #5A4C80; }
 .song-name:hover { border-bottom-color: #5A4C80; }
 .song-name:focus { outline: none; border-bottom-color: #BB99FF; color: #fff; }
+/* help: always in the top corner */
+.btn-help { position: absolute; z-index: 2; top: calc(14px + env(safe-area-inset-top, 0px)); right: max(14px, env(safe-area-inset-right, 0px));
+  color: #FFE066; border-color: #FFE066; text-decoration: none; font-size: 9px; padding: 10px 12px; box-shadow: 0 0 10px rgba(255,224,102,0.35); }
+.btn-help:hover, .btn-help:focus-visible { background: #FFE066; color: #080B14; outline: none; }
+@media (max-width: 600px) { .btn-help { font-size: 7px; padding: 8px 9px; top: calc(8px + env(safe-area-inset-top, 0px)); right: max(8px, env(safe-area-inset-right, 0px)); } }

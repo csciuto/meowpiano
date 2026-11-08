@@ -138,7 +138,8 @@ test('name a recording: the link and the saved file carry it @desktop', async ({
 });
 
 test('help: linked from the piano, and Hear Canon in D loads it', async ({ page }) => {
-  await page.locator('a[href="help.html"]').click();
+  await expect(page.locator('#helpLink')).toBeVisible();
+  await page.locator('#helpLink').click();
   await expect(page.locator('h1')).toHaveText('How to play Meow Piano');
   for (const img of await page.locator('figure img').all()) {
     await img.scrollIntoViewIfNeeded();

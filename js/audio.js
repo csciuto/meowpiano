@@ -74,8 +74,11 @@ function startGranular(buf, rateRef, ls, le) {
 // noteName  — e.g. "C#4"
 // freq      — desired playback frequency
 // useSustain — true: M→granular EO (holds until released); false: recording plays once
+// pitch wheel and tuning together, as a playback-rate multiplier
+const pitchMult = () => Math.pow(2, state.pitchBend / 12) * (state.tuning / 440);
+
 export function createVoice(noteName, freq, useSustain, ls, le) {
-  const bend = Math.pow(2, state.pitchBend / 12);
+  const bend = pitchMult();
   const rate = (freq / BASE_FREQS[noteName]) * bend;
   const t0   = actx.currentTime;
   const xEnd = t0 + ls + state.crossfade;
@@ -151,7 +154,7 @@ function cutVoice(v, noteName, voices = state.liveVoices) {
   // Play W tail from loopEnd
   const tail = actx.createBufferSource();
   tail.buffer = noteBufs[noteName];
-  tail.playbackRate.value = (v.freq / BASE_FREQS[v.noteName]) * Math.pow(2, state.pitchBend / 12);
+  tail.playbackRate.value = (v.freq / BASE_FREQS[v.noteName]) * pitchMult();
   tail.connect(masterGain);
   tail.start(0, state.loopEnd);
   if (v.onEnd) tail.onended = v.onEnd;
@@ -199,7 +202,7 @@ export function applyLoopToLiveVoices() {
 }
 
 export function applyPitchToLiveVoices(noteMap) {
-  const bend = Math.pow(2, state.pitchBend / 12);
+  const bend = pitchMult();
   Object.entries(state.liveVoices).forEach(([noteName, v]) => {
     const n = noteMap[noteName];
     if (!n || !v) return;

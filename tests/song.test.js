@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { pack, unpack, playable, songText, readSong, fitSong, springSteps, LINK_CAP, TICK } from '../js/song.js';
 import { NOTES, BASE_FREQS } from '../js/notes.js';
 
-const SET = { loopStart: 0.26, loopEnd: 0.46, crossfade: 0.02, grainDur: 0.1, grainOverlap: 0.5 };
+const SET = { loopStart: 0.26, loopEnd: 0.46, crossfade: 0.02, grainDur: 0.1, grainOverlap: 0.5, tuning: 440 };
 const ROOM = LINK_CAP - 'https://corey.sciu.to/meowpiano/#song='.length;
 
 // a seeded random source so the test piece is the same every run
@@ -142,6 +142,17 @@ describe('song in a link', () => {
     console.log(`12:00 take cut to ${(fit.end / 60000).toFixed(2)} min at ${fit.text.length} chars`);
     const back = await readSong(fit.text);
     expect(back.events.filter(e => e.type === 'on').length).toBe(fit.events.filter(e => e.type === 'on').length);
+  });
+
+  it('keeps the tuning, and reads version-1 links as A = 440', () => {
+    const ev = [{ type: 'on', note: 'A4', freq: 440, ls: 0.26, le: 0.46, t: 0 }];
+    expect(unpack(pack(ev, 500, { ...SET, tuning: 432.5 })).settings.tuning).toBe(432.5);
+    const v1 = pack(ev, 500, SET);
+    // version 1 header: loop in/out (2 bytes each), crossfade, grain, scatter; version 2 adds 4400 (2 bytes) after them
+    const old = Uint8Array.from([1, ...v1.slice(1, 8), ...v1.slice(10)]);
+    const back = unpack(old);
+    expect(back.settings.tuning).toBe(440);
+    expect(back.events.map(e => [e.type, e.note, e.t])).toEqual([['on', 'A4', 0], ['off', 'A4', 500]]);
   });
 
   it('rejects a damaged link', async () => {

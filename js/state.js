@@ -19,6 +19,9 @@ export const state = {
   sustain: false,
   pbSustain: false,  // pedal state during recorder playback
 
+  // Tuning: what A4 is, in Hz; every note moves with it
+  tuning: 440,
+
   // Pitch wheel
   pitchBend: 0,
   pitchMax:  2,

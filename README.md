@@ -108,7 +108,7 @@ Drag the wheel on the right side of the keyboard up or down to bend pitch up to 
 ### Sharing a recording
 
 A recording travels in the link (`#song=…`), like a player-piano roll: which keys, when, how long they were
-held, the pedal, the pitch wheel, the loop points and the grain settings. Nothing is uploaded, and opening the
+held, the pedal, the pitch wheel, the loop points, the grain settings and the tuning. Nothing is uploaded, and opening the
 link loads the song ready to play. During playback the keys light up green, the pitch wheel moves with the recorded bends, and a bar shows how far along it is.
 
 Links stop at 8,000 characters, the most that chat apps and servers reliably pass along. That's about five
@@ -129,6 +129,7 @@ Click the **▶** tab on the right edge of the keyboard to open the settings pan
 | **XFADE** | Crossfade duration between M→EO and EO→W transitions (0 – 100 ms) |
 | **GRAIN** | Length of each individual grain (20 – 200 ms). Shorter = grainier texture; longer = smoother but more repetitive. |
 | **SCATTER** | How much grains overlap (0 – 80%). Higher = denser and more varied. |
+| **A4** | Tuning: what A above middle C is, 415 – 466 Hz (440 standard). Every note moves with it; shared links keep it. |
 | **COPY** | Copies current loop/grain settings to clipboard so you can paste them into `js/state.js` as defaults. |
 
 ## Running tests

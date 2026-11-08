@@ -201,6 +201,13 @@ export function initSettings() {
     document.getElementById('scatterLbl').textContent = Math.round(state.grainOverlap * 100) + '%';
   });
 
+  // Tuning: A4 in Hz
+  document.getElementById('tuneSlider').addEventListener('input', function () {
+    state.tuning = parseFloat(this.value);
+    document.getElementById('tuneLbl').textContent = state.tuning + 'Hz';
+    applyPitchToLiveVoices(noteMap);
+  });
+
   // Copy button
   document.getElementById('btnCopyLoop').addEventListener('click', () => {
     const txt = `loopStart: ${state.loopStart.toFixed(3)}, loopEnd: ${state.loopEnd.toFixed(3)}, grainDur: ${state.grainDur}, grainOverlap: ${state.grainOverlap}`;
@@ -304,7 +311,7 @@ export function initPitchWheel() {
 // A take is kept as it will be shared: when recording stops it goes through the link format (song.js), so
 // what plays here is what a link plays. Recording stops itself before the link would pass LINK_CAP.
 
-const settingsNow = () => ({ loopStart: state.loopStart, loopEnd: state.loopEnd, crossfade: state.crossfade, grainDur: state.grainDur, grainOverlap: state.grainOverlap });
+const settingsNow = () => ({ loopStart: state.loopStart, loopEnd: state.loopEnd, crossfade: state.crossfade, grainDur: state.grainDur, grainOverlap: state.grainOverlap, tuning: state.tuning });
 const linkBase = () => location.origin + location.pathname + '#song=';
 const linkRoom = () => LINK_CAP - linkBase().length;
 const FULL_MARGIN = 250;   // characters: stop a little early, a second of dense playing fits in this
@@ -340,7 +347,7 @@ export async function loadSongFromLink() {
 function applySettings(st) {
   state.loopStart = st.loopStart; state.loopEnd = st.loopEnd;
   _renderHandles();
-  for (const [id, v] of [['crossfadeSlider', st.crossfade], ['grainSlider', st.grainDur], ['scatterSlider', st.grainOverlap]]) {
+  for (const [id, v] of [['crossfadeSlider', st.crossfade], ['grainSlider', st.grainDur], ['scatterSlider', st.grainOverlap], ['tuneSlider', st.tuning]]) {
     const el = document.getElementById(id);
     el.value = v; el.dispatchEvent(new Event('input'));
   }

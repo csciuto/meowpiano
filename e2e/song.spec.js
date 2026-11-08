@@ -40,6 +40,8 @@ test('1–5 pick the octave @desktop', async ({ page }) => {
 
 test('record, share, and the link plays the same notes in a new tab @desktop', async ({ page, context }) => {
   await expect(page.locator('#btnShare')).toBeDisabled();
+  await page.locator('#tuneSlider').evaluate(el => { el.value = '435'; el.dispatchEvent(new Event('input')); });
+  await expect(page.locator('#tuneLbl')).toHaveText('435Hz');
   await page.keyboard.press('Enter');
   await page.keyboard.press('4');                              // octave +1
   for (const k of ['a', 'd', 'g']) { await page.keyboard.down(k); await page.waitForTimeout(120); await page.keyboard.up(k); }
@@ -70,6 +72,8 @@ test('record, share, and the link plays the same notes in a new tab @desktop', a
   await expect(other.locator('#btnPlay')).toHaveClass(/ready/);
   const loaded = await st(other, 'state.recEvents.filter(e => e.type === "on").map(e => [e.note, Math.round(e.freq)])');
   expect(loaded).toEqual(recorded);
+  expect(await st(other, 'state.tuning')).toBe(435);
+  await expect(other.locator('#tuneSlider')).toHaveValue('435');
   const pedal = await st(other, 'state.recEvents.filter(e => e.type.startsWith("sustain")).map(e => e.type)');
   expect(pedal).toEqual(['sustain_on', 'sustain_off']);
   await other.locator('#btnPlay').click();

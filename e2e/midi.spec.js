@@ -91,6 +91,8 @@ test('a link from an opened file; a file too long for a link keeps its first par
 test('a file that is not MIDI says so', async ({ page }) => {
   await page.setInputFiles('#midiFile', { name: 'x.mid', mimeType: 'audio/midi', buffer: Buffer.from('not midi at all') });
   await expect(page.locator('#status')).toHaveText("couldn't read that MIDI file");
+  await page.setInputFiles('#midiFile', { name: 'song.mid', mimeType: 'audio/midi', buffer: Buffer.from('<!DOCTYPE html><html lang="en">') });
+  await expect(page.locator('#status')).toHaveText('that file is a saved web page, not MIDI');
 });
 
 test('a MIDI keyboard plays, bends, holds the pedal and records @desktop', async ({ page }) => {

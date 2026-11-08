@@ -557,7 +557,13 @@ export function initTransport(onRefresh, onStatus) {
     const f = fileInput.files[0];
     if (!f) return;
     let file;
-    try { file = fromMidi(new Uint8Array(await f.arrayBuffer())); } catch (_) { onStatus("couldn't read that MIDI file"); return; }
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    try { file = fromMidi(bytes); } catch (_) {
+      // a web page saved as .mid (GitHub's file view, say) is the usual mix-up
+      const page = /^\s*<(!doctype|html)/i.test(new TextDecoder().decode(bytes.subarray(0, 64)));
+      onStatus(page ? 'that file is a saved web page, not MIDI' : "couldn't read that MIDI file");
+      return;
+    }
     if (!file.parts.length) { onStatus('no notes in that MIDI file'); return; }
     halt();
     clearTake();

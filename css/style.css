@@ -232,3 +232,5 @@ body::before {
 #partList label { font-family: "Press Start 2P", monospace; font-size: 7px; color: #BB99FF; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 #partList input { accent-color: #44FF88; margin: 0; }
 #partList .count { color: #8373A4; }
+.btn-midiin { color: #44DDFF; border-color: #44DDFF; font-size: 7px; }
+.btn-midiin[aria-pressed="true"] { background: #44DDFF; color: #080B14; box-shadow: 0 0 12px rgba(68,221,255,0.7); }

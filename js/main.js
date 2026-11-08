@@ -1,6 +1,7 @@
 import { state } from './state.js';
-import { NOTES, keyMap, noteMap } from './notes.js';
-import { boot, noteOn, noteOff, analyser } from './audio.js';
+import { NOTES, keyMap, noteMap, BASE_FREQS } from './notes.js';
+import { initMidiIn, keyFor } from './midiin.js';
+import { boot, noteOn, noteOff, analyser, soundOn, wake } from './audio.js';
 import { initKeyboard } from './keyboard.js';
 import {
   setSustain,
@@ -12,6 +13,7 @@ import {
   initTransport,
   keyBendStart,
   keyBendStop,
+  midiBend,
   loadSongFromLink,
   updateSustainUI,
 } from './controls.js';
@@ -58,6 +60,28 @@ function off(n) {
   }
   refreshDisplay();
 }
+
+// ── A MIDI keyboard ───────────────────────────────────────────────────
+// Each MIDI note gets a piano key at its own pitch (two octaves of one note use two keys, so neither cuts
+// the other off); the key lights up and the note records like any other.
+
+const midiHeld = {};   // MIDI note → the key playing it
+initMidiIn(document.getElementById('btnMidiIn'), {
+  noteOn(m) {
+    if (midiHeld[m]) off(midiHeld[m]);
+    const k = keyFor(m, new Set(Object.keys(state.liveVoices)));
+    const n = { ...noteMap[k.note], freq: BASE_FREQS[k.note] * Math.pow(2, k.oct), fixed: true };
+    midiHeld[m] = n;
+    boot().then(() => on(n));
+  },
+  noteOff(m) { const n = midiHeld[m]; if (n) { delete midiHeld[m]; off(n); } },
+  sustain(down) { if (down !== state.sustain) { setSustain(down); updateSustainUI(); } },
+  bend: midiBend,
+  status: text => setStatus(text + (text.endsWith('connected') && !soundOn() ? ' · click once for sound' : '')),
+  active(on) { document.getElementById('btnMidiIn').setAttribute('aria-pressed', String(on)); },
+});
+
+for (const ev of ['pointerdown', 'keydown']) document.addEventListener(ev, wake);
 
 // ── Keyboard shortcuts ────────────────────────────────────────────────
 

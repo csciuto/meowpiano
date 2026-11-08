@@ -93,3 +93,43 @@ test('a file that is not MIDI says so', async ({ page }) => {
   await page.setInputFiles('#midiFile', { name: 'x.mid', mimeType: 'audio/midi', buffer: Buffer.from('not midi at all') });
   await expect(page.locator('#status')).toHaveText("couldn't read that MIDI file");
 });
+
+test('a MIDI keyboard plays, bends, holds the pedal and records @desktop', async ({ page }) => {
+  await page.addInitScript(() => {
+    // a stand-in keyboard: the page sees one input named KeyStep 37
+    const input = { name: 'KeyStep 37', onmidimessage: null };
+    window.__fakeInput = input;
+    navigator.requestMIDIAccess = async () => ({ inputs: new Map([['k', input]]), onstatechange: null });
+  });
+  await page.goto('/');
+  await expect(page.locator('#status')).toHaveText(/click a key/);
+  await page.locator('#btnMidiIn').click();
+  await expect(page.locator('#status')).toHaveText(/^KeyStep 37 connected/);
+  await expect(page.locator('#btnMidiIn')).toHaveAttribute('aria-pressed', 'true');
+  const send = bytes => page.evaluate(b => window.__fakeInput.onmidimessage({ data: b }), bytes);
+  await page.keyboard.press('Enter');                         // record
+  await page.keyboard.press('5');                             // app octave +2: MIDI notes ignore it
+  for (const m of [48, 60, 64, 67, 72]) await send([0x90, m, 100]);   // C3 + a C major chord with two Cs
+  await expect.poll(() => page.evaluate(async () => { const { state } = await import('/js/state.js'); return Object.keys(state.liveVoices).length; })).toBe(5);
+  await send([0xb0, 64, 127]);                                // pedal down
+  await send([0xe0, 0, 0x60]);                                // bend +1
+  await page.waitForTimeout(200);
+  await send([0xe0, 0, 0x40]);                                // strip let go: center
+  for (const m of [48, 60, 64, 67, 72]) await send([0x80, m, 0]);
+  await send([0xb0, 64, 0]);
+  await page.keyboard.press('Enter');                         // stop
+  const rec = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    return state.recEvents;
+  });
+  const ons = rec.filter(e => e.type === 'on').map(e => Math.round(69 + 12 * Math.log2(e.freq / 440)));
+  expect(ons).toEqual([48, 60, 64, 67, 72]);
+  expect(new Set(rec.filter(e => e.type === 'on').map(e => e.note)).size).toBe(5);
+  expect(rec.filter(e => e.type.startsWith('sustain')).map(e => e.type)).toEqual(['sustain_on', 'sustain_off']);
+  const bends = rec.filter(e => e.type === 'pitch').map(e => e.bend);
+  expect(bends).toContain(1);
+  expect(bends.at(-1)).toBe(0);
+  // remembered: the next visit reconnects without the button
+  await page.reload();
+  await expect(page.locator('#btnMidiIn')).toHaveAttribute('aria-pressed', 'true');
+});

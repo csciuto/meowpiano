@@ -228,7 +228,22 @@ let springTimer = null, keyTimer = null, keyDir = 0, held = false;
 const SPRING_STEPS = 20, STEP_MS = 16, KEY_RAMP_MS = 240;   // ↑ / ↓ reach the end of the wheel in 240 ms
 
 function recordBend() {
-  if (state.isRec) state.recEvents.push({ type: 'pitch', bend: state.pitchBend, t: performance.now() - state.recStart });
+  if (!state.isRec) return;
+  const t = performance.now() - state.recStart;
+  // a wheel that sat still, then jumped (a MIDI strip touched somewhere new): keep where it sat until now,
+  // or playback would slide there slowly
+  for (let i = state.recEvents.length - 1; i >= 0; i--) {
+    const e = state.recEvents[i];
+    if (e.type === 'wheel_release') break;
+    if (e.type === 'pitch') { if (t - e.t > 40) state.recEvents.push({ type: 'pitch', bend: e.bend, t: t - 1 }); break; }
+  }
+  state.recEvents.push({ type: 'pitch', bend: state.pitchBend, t });
+}
+/** A MIDI keyboard's pitch wheel: it springs back by itself, so this just follows it. */
+export function midiBend(v) {
+  if (springTimer) { clearInterval(springTimer); springTimer = null; }
+  setBend(v);
+  applyPitchToLiveVoices(noteMap);
 }
 function grabWheel() {
   if (springTimer) { clearInterval(springTimer); springTimer = null; }

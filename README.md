@@ -103,6 +103,7 @@ Drag the wheel on the right side of the keyboard up or down to bend pitch up to 
 | STOP | Stop playback or end recording |
 | CLR | Clear the current recording (and its link) |
 | OPEN | Open a MIDI file (`.mid`) to play |
+| MIDI IN | Play from a MIDI keyboard (lit while one is connected) |
 | LINK / MIDI | What SHARE makes: a link, or a MIDI file |
 | SHARE / SAVE | Put the recording in the address and copy the link, or save it as a `.mid` file |
 | SUSTAIN | Sustain pedal while pressed |
@@ -119,6 +120,14 @@ every bar and a bend every other bar). While recording, the status shows how ful
 stops by itself when it's full; for a longer piece, record a second part. The format is in `js/song.js`:
 note starts in 5 ms steps, held lengths in 10 ms steps, pitch-wheel drags kept to within 4 cents, then
 compressed.
+
+### A MIDI keyboard
+
+**MIDI IN** connects a MIDI keyboard (Chrome, Edge or Firefox; Safari has no Web MIDI). Its keys, pitch
+wheel or strip and sustain pedal play the piano live and record like the computer keys, with no limit on how
+many keys are down at once (laptop keyboards often stop at three or four). Notes sound at their own pitch,
+middle C = C4; the keyboard's octave buttons move them, not the app's. Once connected it reconnects on
+later visits; the browser needs one click on the page before it makes sound.
 
 ### MIDI files
 

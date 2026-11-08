@@ -9,6 +9,10 @@ export const noteBufs = {};  // note name → AudioBuffer
 // "C#4" → "Cs4"  (# is not safe in a URL path segment)
 function toFilename(note) { return note.replace('#', 's'); }
 
+/** Sound can start only after a click or key press on the page (browser rule; MIDI notes don't count). */
+export const soundOn = () => !!actx && actx.state === 'running';
+export function wake() { if (actx && actx.state === 'suspended') actx.resume(); }
+
 export function boot() {
   if (actx) return Promise.resolve();
   actx = new (window.AudioContext || window.webkitAudioContext)();
@@ -176,6 +180,7 @@ export function noteOn(n, onEnd) {
   // goes down). Cleanup happens in releaseVoice / cutVoice.
   const v = createVoice(n.note, n.freq, true, state.loopStart, state.loopEnd);
   v.onEnd = onEnd;
+  v.fixed = !!n.fixed;   // a MIDI keyboard note: its own pitch, not the app's octave
   state.liveVoices[n.note] = v;
   if (n.el) n.el.classList.add('pressed');
 }
@@ -206,7 +211,7 @@ export function applyPitchToLiveVoices(noteMap) {
   Object.entries(state.liveVoices).forEach(([noteName, v]) => {
     const n = noteMap[noteName];
     if (!n || !v) return;
-    const rate = (n.freq / BASE_FREQS[noteName]) * bend;
+    const rate = ((v.fixed ? v.freq : n.freq) / BASE_FREQS[noteName]) * bend;
     v.src.playbackRate.value = rate;
     if (v.granular) v.granular.rateRef.value = rate;
   });

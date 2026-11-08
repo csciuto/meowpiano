@@ -109,7 +109,7 @@ Drag the wheel on the right side of the keyboard up or down to bend pitch up to 
 
 A recording travels in the link (`#song=…`), like a player-piano roll: which keys, when, how long they were
 held, the pedal, the pitch wheel, the loop points and the grain settings. Nothing is uploaded, and opening the
-link loads the song ready to play.
+link loads the song ready to play. During playback the keys light up green, the pitch wheel moves with the recorded bends, and a bar shows how far along it is.
 
 Links stop at 8,000 characters, the most that chat apps and servers reliably pass along. That's about five
 minutes of expressive playing (`tests/song.test.js` checks a five-minute piece of ~1,700 notes, a pedal change

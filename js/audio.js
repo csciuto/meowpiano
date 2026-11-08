@@ -229,10 +229,12 @@ export function pbNoteOn(n, freq, useSustain, ls, le, dec, onEnd) {
   const v = createVoice(n.note, freq, true, ls, le);
   v.onEnd = onEnd;
   state.pbVoices[n.note] = v;
+  if (n.el) n.el.classList.add('played');   // playback lights keys green, like a player piano
 }
 
 // Playback replays keys and pedal with the same rules as live play.
 export function pbNoteOff(n) {
+  if (n.el) n.el.classList.remove('played');
   const v = state.pbVoices[n.note];
   if (!v) return;
   if (state.pbSustain) v.keyUp = true;
@@ -254,6 +256,7 @@ export function stopAllPbVoices() {
   });
   state.pbVoices = {};
   state.pbSustain = false;
+  document.querySelectorAll('.key.played').forEach(el => el.classList.remove('played'));
 }
 
 // ── Loop preview ──────────────────────────────────────────────────────

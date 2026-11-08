@@ -105,6 +105,13 @@ body::before {
 .status { font-size: 8px; color: #8373A4; min-height: 16px; text-align: center; }
 .status.recording { color: #FF5555; animation: blink 0.9s step-end infinite; }
 .status.playing { color: #44FF88; }
+.progress { width: min(320px, 80vw); height: 4px; border-radius: 2px; background: rgba(68,255,136,0.12); visibility: hidden; margin-top: -6px; }
+.progress.on { visibility: visible; }
+#progFill { height: 100%; width: 0; border-radius: 2px; background: #44FF88; box-shadow: 0 0 8px rgba(68,255,136,0.8); }
+.key.white.played { background: linear-gradient(180deg, #9CFFC0 0%, #44E080 100%); box-shadow: 0 0 16px rgba(68,255,136,0.9); transform: translateY(2px); }
+.key.black.played { background: linear-gradient(180deg, #44FF88 0%, #10A050 100%); box-shadow: 0 0 14px rgba(68,255,136,1); transform: translateY(1px); }
+.key.played .key-label, .key.played .key-note { color: #080B14; opacity: 0.8; }
+.pitch-wheel-thumb.playback { background: linear-gradient(180deg, #44FF88, #10A050); box-shadow: 0 0 12px rgba(68,255,136,0.8); border-color: #44FF88; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 .key-guide { font-size: 7px; color: #8173AB; text-align: center; line-height: 2; letter-spacing: 1px; }
 .key-guide span { color: #A99AD0; }

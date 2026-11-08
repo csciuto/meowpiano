@@ -357,6 +357,22 @@ export function initTransport(onRefresh, onStatus) {
   _setReady = on => { btnPlay.disabled = btnLoop.disabled = btnShare.disabled = !on; };
   let watch = null, recSettings = null;
 
+  // progress while playing: the bar under the status and the time
+  let progTimer = null;
+  const prog = document.getElementById('progress'), progFill = document.getElementById('progFill');
+  function showProgress(total) {
+    const t0 = performance.now();
+    prog.classList.add('on');
+    clearInterval(progTimer);
+    const tick = () => {
+      const t = Math.min(total, performance.now() - t0);
+      progFill.style.width = (100 * t / total) + '%';
+      onStatus('PLAYING ' + fmtTime(t) + ' / ' + fmtTime(total), 'playing');
+    };
+    tick(); progTimer = setInterval(tick, 250);
+  }
+  function hideProgress() { clearInterval(progTimer); progTimer = null; prog.classList.remove('on'); }
+
   function startPb() {
     if (!state.recEvents.length) return;
     btnPlay.classList.remove('ready');
@@ -366,13 +382,15 @@ export function initTransport(onRefresh, onStatus) {
     onStatus('PLAYING...', 'playing');
     const evs = playable(state.recEvents);
     const maxT = Math.max(state.recEnd || 0, evs.reduce((m, e) => Math.max(m, e.t), 0));
+    showProgress(maxT);
+    document.getElementById('pitchThumb').classList.add('playback');
     evs.forEach(ev => {
       state.timers.push(setTimeout(() => {
         if (ev.type === 'sustain_on')   { pbSustainOn();  return; }
         if (ev.type === 'sustain_off')  { pbSustainOff(); return; }
         if (ev.type === 'pitch') {
           state.pitchBend = ev.bend;
-          applyPitchToLiveVoices(noteMap);
+          renderWheel();   // the wheel moves as it did when recorded
           return;
         }
         const n = noteMap[ev.note];
@@ -386,7 +404,7 @@ export function initTransport(onRefresh, onStatus) {
       state.isPlay = false;
       btnPlay.classList.remove('active');
       stopAllPbVoices();
-      state.pitchBend = 0;
+      endPbVisuals();
       if (state.loop) { state.timers = []; startPb(); } else onStatus('done');
     }, maxT + 800));
   }
@@ -397,7 +415,13 @@ export function initTransport(onRefresh, onStatus) {
     state.isPlay = false;
     btnPlay.classList.remove('active');
     stopAllPbVoices();
+    endPbVisuals();
     onRefresh();
+  }
+  function endPbVisuals() {
+    hideProgress();
+    state.pitchBend = 0; renderWheel();
+    document.getElementById('pitchThumb').classList.remove('playback');
   }
 
   function startRec() {

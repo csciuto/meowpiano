@@ -106,7 +106,8 @@ export function keyFor(m, sounding = new Set()) {
 }
 
 /**
- * Read a .mid file. Returns {parts, settings, build}: parts = [{id, name, notes, drums}], settings = what a
+ * Read a .mid file. Returns {parts, title, settings, build}: parts = [{id, name, notes, drums}] in the file's
+ * order, title = the song's name if the file has one (else ''), settings = what a
  * file saved here carries (else null), build(ids) = {events, end} for the chosen parts.
  */
 export function fromMidi(bytes) {
@@ -130,7 +131,7 @@ export function fromMidi(bytes) {
       parts.get(id).notes++;
     }
   }
-  const list = [...parts.values()];
+  const list = [...parts.values()].sort((a, b) => a.track - b.track || a.ch - b.ch);   // the file's order
   const perTrack = {};
   list.forEach(p => { perTrack[p.track] = (perTrack[p.track] || 0) + 1; });
   for (const p of list) {
@@ -140,6 +141,9 @@ export function fromMidi(bytes) {
     p.name = name;
   }
   const lastT = all.reduce((m, e) => Math.max(m, e.t), 0);
+  // the song's name: what a track without notes (the conductor track, usually) is called
+  const withNotes = new Set(list.map(p => p.track));
+  const title = Object.keys(names).map(Number).sort((a, b) => a - b).filter(t => !withNotes.has(t)).map(t => names[t]).find(Boolean) || '';
 
   function build(ids) {
     const chosen = new Set(ids);
@@ -192,7 +196,7 @@ export function fromMidi(bytes) {
     return { events, end };
   }
 
-  return { parts: list.map(({ id, name, notes, drums }) => ({ id, name, notes, drums })), settings, build };
+  return { parts: list.map(({ id, name, notes, drums }) => ({ id, name, notes, drums })), title, settings, build };
 }
 
 // ── writing ───────────────────────────────────────────────────────────

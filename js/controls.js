@@ -583,10 +583,10 @@ export function initTransport(onRefresh, onStatus) {
     let ids = [...partList.querySelectorAll('input:checked')].map(b => b.value);
     if (midiFile.parts.length === 1) ids = [midiFile.parts[0].id];
     const { events, end } = midiFile.build(ids);
-    setTake(events, end, { kind: 'file', title: fileName });
+    setTake(events, end, { kind: 'file', title: midiFile.title || fileName });
     if (location.hash) history.replaceState(null, '', location.pathname);
     const notes = events.filter(e => e.type === 'on').length;
-    onStatus(fileName + ' · ' + fmtTime(end) + ' · ' + notes.toLocaleString('en-US') + ' notes' + (notes ? ' · press PLAY' : ''));
+    onStatus((midiFile.title || fileName) + ' · ' + fmtTime(end) + ' · ' + notes.toLocaleString('en-US') + ' notes' + (notes ? ' · press PLAY' : ''));
   }
 
   // ── buttons ──

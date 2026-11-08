@@ -134,7 +134,8 @@ later visits; the browser needs one click on the page before it makes sound.
 ### MIDI files
 
 **OPEN** reads a standard MIDI file. Each instrument in it (a track's notes on one channel) gets a checkbox,
-named from the file, with its note count; all are on except drums (channel 10), which are note numbers for
+named from the file, with its note count, in the file's order (the song's name comes from the file's
+conductor track if it has one, else the file name); all are on except drums (channel 10), which are note numbers for
 drum sounds rather than pitches. The checked instruments play as one meow piano: notes fold into the
 piano's reach (C2–C8), and every note plays at one loudness (velocity is ignored).
 
@@ -144,6 +145,11 @@ that start `meowpiano`, so a file saved here opens with the same sound; other pr
 Recording has no length limit, and SAVE keeps everything. A link holds as much as fits: for a recording, the
 last part (the warm-up goes, what was just played stays); for an opened file, the first. The status says
 which (`LINK · LAST 4:51`). Unchecking instruments makes a song fit. The format is in `js/midi.js`.
+
+`songs/canon-in-d.mid` is a test and demo file: Pachelbel's Canon in D (public domain), sequenced here by
+`scripts/make-canon.js`. Three violins in canon over the cello's ground, a slowdown at the end, vibrato on
+the last note. Song files from elsewhere are usually someone's copyrighted arrangement: test with them
+locally, but don't commit them.
 
 ### Settings panel
 

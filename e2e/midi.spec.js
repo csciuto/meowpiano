@@ -172,3 +172,11 @@ test('pause, ⏪ ⏩, and the seek bar start the song anywhere @desktop', async 
   await expect(page.locator('#seek')).toHaveValue('0');
   expect(await voices()).toBe(0);
 });
+
+test('Canon in D opens with its name and plays', async ({ page }) => {
+  await page.setInputFiles('#midiFile', 'songs/canon-in-d.mid');
+  await expect(page.locator('#status')).toHaveText('Canon in D · 1:51 · 588 notes · press PLAY');
+  await expect(page.locator('#partList label')).toHaveText(['Violin I · 161', 'Violin II · 161', 'Violin III · 161', 'Basso continuo · 105']);
+  await page.locator('#btnPlay').click();
+  await expect(page.locator('#status')).toHaveText(/^PLAYING Canon in D · 0:0\d \/ 1:51$/);
+});

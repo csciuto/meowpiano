@@ -73,3 +73,34 @@ describe('writing MIDI files', () => {
     expect(pitch.at(-1).bend).toBe(0);   // the spring-back is in the file
   });
 });
+
+describe('the Canon in D test file (songs/canon-in-d.mid, made by scripts/make-canon.js)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { fitSong, LINK_CAP } = await import('../js/song.js');
+  const file = fromMidi(new Uint8Array(readFileSync(new URL('../songs/canon-in-d.mid', import.meta.url))));
+  const all = file.build(file.parts.map(p => p.id));
+
+  it('has its name, and four instruments in the file’s order', () => {
+    expect(file.title).toBe('Canon in D');
+    expect(file.parts.map(p => [p.name, p.notes])).toEqual([['Violin I', 161], ['Violin II', 161], ['Violin III', 161], ['Basso continuo', 105]]);
+  });
+
+  it('slows down at the end (tempo changes) and ends on a D major chord with vibrato', () => {
+    const bass = file.build([file.parts[3].id]).events.filter(e => e.type === 'on');
+    const gap = (i) => bass[i + 1].t - bass[i].t;
+    expect(gap(0)).toBeCloseTo(1000, 0);                     // quarter = 60
+    expect(gap(bass.length - 2)).toBeGreaterThan(1150);      // slower in the last bar
+    const lastOns = all.events.filter(e => e.type === 'on').slice(-4).map(e => midiNote(e.freq) % 12).sort((a, b) => a - b);
+    expect(lastOns).toEqual([2, 2, 6, 9]);                   // D, D, F#, A
+    const bends = all.events.filter(e => e.type === 'pitch');
+    expect(Math.max(...bends.map(e => Math.abs(e.bend)))).toBeLessThan(0.1);
+    expect(bends.at(-1).bend).toBe(0);
+  });
+
+  it('every note is in D major, and all of it fits in one link', async () => {
+    const pcs = new Set(all.events.filter(e => e.type === 'on').map(e => midiNote(e.freq) % 12));
+    expect([...pcs].every(pc => [1, 2, 4, 6, 7, 9, 11].includes(pc))).toBe(true);
+    const fit = await fitSong(all.events, all.end, { ...SET, title: file.title }, LINK_CAP - 'https://corey.sciu.to/meowpiano/#song='.length);
+    expect(fit.cut).toBe(false);
+  });
+});

@@ -147,9 +147,10 @@ describe('song in a link', () => {
   it('keeps the tuning, and reads version-1 links as A = 440', () => {
     const ev = [{ type: 'on', note: 'A4', freq: 440, ls: 0.26, le: 0.46, t: 0 }];
     expect(unpack(pack(ev, 500, { ...SET, tuning: 432.5 })).settings.tuning).toBe(432.5);
-    const v1 = pack(ev, 500, SET);
-    // version 1 header: loop in/out (2 bytes each), crossfade, grain, scatter; version 2 adds 4400 (2 bytes) after them
-    const old = Uint8Array.from([1, ...v1.slice(1, 8), ...v1.slice(10)]);
+    const v3 = pack(ev, 500, SET);
+    // version 1 header: loop in/out (2 bytes each), crossfade, grain, scatter; version 2 adds 4400 (2 bytes),
+    // version 3 the name (here a 0 length byte)
+    const old = Uint8Array.from([1, ...v3.slice(1, 8), ...v3.slice(11)]);
     const back = unpack(old);
     expect(back.settings.tuning).toBe(440);
     expect(back.events.map(e => [e.type, e.note, e.t])).toEqual([['on', 'A4', 0], ['off', 'A4', 500]]);
@@ -167,6 +168,12 @@ describe('song in a link', () => {
     expect(back.events.filter(e => e.type === 'on').at(-1).note).toBe(lastOn.note);   // the end is there
     const first = back.events.find(e => e.type === 'sustain_on');
     expect(first).toBeTruthy();
+  });
+
+  it("keeps the song's name", () => {
+    const ev = [{ type: 'on', note: 'A4', freq: 440, ls: 0.26, le: 0.46, t: 0 }];
+    expect(unpack(pack(ev, 500, { ...SET, title: 'Tonight, Tonight — 1979 ♪' })).settings.title).toBe('Tonight, Tonight — 1979 ♪');
+    expect(unpack(pack(ev, 500, SET)).settings.title).toBeUndefined();
   });
 
   it('knows what is sounding at any moment, for starting in the middle', () => {

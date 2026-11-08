@@ -9,8 +9,9 @@
  *   {type:'pitch', bend, t}              wheel (or arrow keys) moved to `bend` semitones
  *   {type:'wheel_release', t}            wheel let go: it springs back to 0 by itself (springSteps)
  *
- * Packed format, version 2 (then deflate-raw, then base64url):
- *   version, header (loop in/out ms, crossfade ms, grain ms, scatter %, tuning: A4 in tenths of Hz; version 1 had no tuning, read as 440), then one record per note, pedal
+ * Packed format, version 3 (then deflate-raw, then base64url):
+ *   version, header (loop in/out ms, crossfade ms, grain ms, scatter %, tuning: A4 in tenths of Hz, the song's
+ *   name as length + UTF-8; version 1 had neither, read as 440 and no name; version 2 had no name), then one record per note, pedal
  *   change, wheel point, wheel release or loop-point change, in time order. Times are 5 ms ticks since the
  *   previous record; how long a key is held is in 10 ms steps. Columns are stored apart (ops, times, keys, lengths, bends, loops) so they compress well.
  *   A note is one record: start, key (note + octave), and how long the key was held.
@@ -21,7 +22,7 @@ import { NOTES, BASE_FREQS } from './notes.js';
 export const TICK = 5;            // ms per time step (when things start)
 export const LEN_TICK = 10;       // ms per step of how long a key is held: the release fades over 20 ms anyway
 export const LINK_CAP = 8000;     // longest whole link we make: some chat apps and servers stop around 8 KB
-const VERSION = 2;
+const VERSION = 3;
 const OP = { NOTE: 0, PED_ON: 1, PED_OFF: 2, BEND: 3, RELEASE: 4, LOOP: 5 };
 const BEND_TOL = 4;               // hundredths of a semitone
 const SPRING_STEPS = 20, SPRING_MS = 16;   // the wheel's spring-back (controls.js)
@@ -42,6 +43,7 @@ function reader(bytes, start = 0) {
   let i = start;
   return {
     get pos() { return i; },
+    take(n) { if (i + n > bytes.length) throw new Error('song is cut short'); const s = bytes.subarray(i, i + n); i += n; return s; },
     var() {
       let v = 0, mul = 1, b;
       do {
@@ -87,7 +89,7 @@ function simplify(pts, tol) {
 
 /**
  * Pack a take. `end` is when recording stopped (closes keys still down). `settings` = {loopStart, loopEnd,
- * crossfade, grainDur, grainOverlap, tuning}; tuning (A4 in Hz) defaults to 440.
+ * crossfade, grainDur, grainOverlap, tuning, title}; tuning (A4 in Hz) defaults to 440, title (the song's name) to none.
  */
 export function pack(events, end, settings) {
   const recs = [];   // {tick, op, ...}
@@ -133,6 +135,8 @@ export function pack(events, end, settings) {
   putVar(head, settings.loopStart * 1000); putVar(head, settings.loopEnd * 1000);
   putVar(head, settings.crossfade * 1000); putVar(head, settings.grainDur * 1000); putVar(head, settings.grainOverlap * 100);
   putVar(head, (settings.tuning ?? 440) * 10);
+  const name = new TextEncoder().encode((settings.title || '').slice(0, 80));
+  putVar(head, name.length); head.push(...name);
   putVar(head, tk(end));
   for (const col of [ops, times, keys, durs, bends, loops]) putVar(head, col.length);
   return Uint8Array.from([...head, ...ops, ...times, ...keys, ...durs, ...bends, ...loops]);
@@ -142,13 +146,14 @@ export function pack(events, end, settings) {
 export function unpack(bytes) {
   const h = reader(bytes);
   const version = bytes[0];
-  if (version !== 1 && version !== VERSION) throw new Error('unknown song version');
+  if (version < 1 || version > VERSION) throw new Error('unknown song version');
   h.var();
   const settings = {
     loopStart: h.var() / 1000, loopEnd: h.var() / 1000, crossfade: h.var() / 1000,
     grainDur: h.var() / 1000, grainOverlap: h.var() / 100,
   };
   settings.tuning = version >= 2 ? h.var() / 10 : 440;
+  if (version >= 3) { const n = h.var(); const t = new TextDecoder().decode(h.take(n)); if (t) settings.title = t; }
   const end = h.var() * TICK;
   const lens = [0, 0, 0, 0, 0, 0].map(() => h.var());
   let at = h.pos;

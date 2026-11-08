@@ -58,6 +58,12 @@ test('a link from an opened file; a file too long for a link keeps its first par
   await expect(page.locator('#status')).toHaveText(/^link copied · \d+ chars/);
   expect(page.url()).toMatch(/#song=[\w-]+$/);
   await expect(page.locator('#parts')).toBeVisible();   // a link of a file keeps the instrument list
+  const other = await context.newPage();                 // the link carries the song's name
+  await other.goto(page.url());
+  await expect(other.locator('#status')).toHaveText('band · 0:03 · press PLAY');
+  await other.locator('#btnPlay').click();
+  await expect(other.locator('#status')).toHaveText(/^PLAYING band · 0:0\d \/ 0:03$/);
+  await other.close();
 
   // a long file: 20 minutes of 16th notes
   const long = await page.evaluate(async () => {
@@ -145,23 +151,23 @@ test('pause, ⏪ ⏩, and the seek bar start the song anywhere @desktop', async 
   await page.waitForTimeout(600);
   await page.locator('#btnPlay').click();                              // pause
   await expect(page.locator('#btnPlay')).toHaveText(/PLAY/);
-  await expect(page.locator('#status')).toHaveText('PAUSED 0:01 / 1:00');
+  await expect(page.locator('#status')).toHaveText('PAUSED chords · 0:01 / 1:00');
   expect(await voices()).toBe(0);
 
   await page.locator('#btnFwd').click();
-  await expect(page.locator('#status')).toHaveText('PAUSED 0:11 / 1:00');
+  await expect(page.locator('#status')).toHaveText('PAUSED chords · 0:11 / 1:00');
   await page.locator('#btnBack').click();
   await page.locator('#btnBack').click();
-  await expect(page.locator('#status')).toHaveText('PAUSED 0:00 / 1:00');
+  await expect(page.locator('#status')).toHaveText('PAUSED chords · 0:00 / 1:00');
 
   // drag to 30.5 s, in the middle of a held chord: playing from there sounds it at once
   await page.locator('#seek').evaluate(el => { el.value = '30500'; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); });
-  await expect(page.locator('#status')).toHaveText(/PAUSED 0:3[01] \/ 1:00/);
+  await expect(page.locator('#status')).toHaveText(/PAUSED chords · 0:3[01] \/ 1:00/);
   await page.locator('#btnPlay').click();
   await expect.poll(voices, { timeout: 500 }).toBe(3);
-  await expect(page.locator('#status')).toHaveText(/PLAYING 0:3\d \/ 1:00/);
+  await expect(page.locator('#status')).toHaveText(/PLAYING chords · 0:3\d \/ 1:00/);
   await page.locator('#btnFwd').click();                               // while playing
-  await expect(page.locator('#status')).toHaveText(/PLAYING 0:4\d \/ 1:00/);
+  await expect(page.locator('#status')).toHaveText(/PLAYING chords · 0:4\d \/ 1:00/);
   await page.locator('#btnStop').click();
   await expect(page.locator('#seek')).toHaveValue('0');
   expect(await voices()).toBe(0);

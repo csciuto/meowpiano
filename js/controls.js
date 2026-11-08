@@ -350,8 +350,8 @@ export async function loadSongFromLink() {
   try {
     const song = await readSong(m[1]);
     applySettings(song.settings);
-    _setTake(song.events, song.end, { kind: 'link', link: { text: m[1], cut: false } });
-    _status('song loaded · ' + fmtTime(song.end) + ' · press PLAY');
+    _setTake(song.events, song.end, { kind: 'link', title: song.settings.title || '', link: { text: m[1], cut: false } });
+    _status((song.settings.title ? song.settings.title + ' · ' : 'song loaded · ') + fmtTime(song.end) + ' · press PLAY');
     popup('playToast', 'SONG LOADED · ' + fmtTime(song.end), 5000);
     document.getElementById('btnPlay').classList.add('ready');   // glows until played
     return true;
@@ -410,10 +410,12 @@ export function initTransport(onRefresh, onStatus) {
     seek.style.setProperty('--fill', (total ? 100 * t / total : 0) + '%');
     seek.setAttribute('aria-valuetext', fmtTime(t) + ' of ' + fmtTime(total));
   }
+  // the song's name stays in view while it plays, shortened if long
+  const shortTitle = () => !take.title ? '' : (take.title.length > 28 ? take.title.slice(0, 27).trimEnd() + '…' : take.title) + ' · ';
   function tick() {
     const t = now();
     showPos(t);
-    onStatus((state.isPlay ? 'PLAYING ' : 'PAUSED ') + fmtTime(t) + ' / ' + fmtTime(total), state.isPlay ? 'playing' : '');
+    onStatus((state.isPlay ? 'PLAYING ' : 'PAUSED ') + shortTitle() + fmtTime(t) + ' / ' + fmtTime(total), state.isPlay ? 'playing' : '');
   }
   function playLabel() { btnPlay.innerHTML = state.isPlay ? '&#x275A;&#x275A; PAUSE' : '&#x25B6; PLAY'; }
 
@@ -451,7 +453,7 @@ export function initTransport(onRefresh, onStatus) {
     }
     state.timers.push(setTimeout(() => {
       halt(); pos = 0; showPos(0);
-      if (state.loop) startPb(0); else onStatus('done');
+      if (state.loop) startPb(0); else onStatus((take.title ? take.title + ' · ' : '') + 'done');
     }, total - from + 800));
     tick(); progTimer = setInterval(tick, 250);
   }
@@ -514,7 +516,7 @@ export function initTransport(onRefresh, onStatus) {
 
   // ── links ──
   async function makeLink(events, end, settings, keep) {
-    const fit = await fitSong(events, end, settings, linkRoom(), keep);
+    const fit = await fitSong(events, end, { ...settings, title: take.title || undefined }, linkRoom(), keep);
     return { text: fit.text, cut: fit.cut, keep, len: fit.end };
   }
   const linkNote = l => l.cut ? 'LINK · ' + (l.keep === 'last' ? 'LAST ' : 'FIRST ') + fmtTime(l.len)
@@ -581,7 +583,7 @@ export function initTransport(onRefresh, onStatus) {
     let ids = [...partList.querySelectorAll('input:checked')].map(b => b.value);
     if (midiFile.parts.length === 1) ids = [midiFile.parts[0].id];
     const { events, end } = midiFile.build(ids);
-    setTake(events, end, { kind: 'file' });
+    setTake(events, end, { kind: 'file', title: fileName });
     if (location.hash) history.replaceState(null, '', location.pathname);
     const notes = events.filter(e => e.type === 'on').length;
     onStatus(fileName + ' · ' + fmtTime(end) + ' · ' + notes.toLocaleString('en-US') + ' notes' + (notes ? ' · press PLAY' : ''));

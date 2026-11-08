@@ -103,6 +103,7 @@ Drag the wheel on the right side of the keyboard up or down to bend pitch up to 
 | STOP | Stop and go back to the start, or end recording |
 | CLR | Clear the current recording (and its link) |
 | ◀◀ 10 / 10 ▶▶ | Back or forward 10 seconds |
+| Name | The song's name, above the seek bar: type one for any song ("untitled" until you do). Links and saved files carry it. |
 | Seek bar | Drag or click to move anywhere in the song (arrow keys when focused) |
 | OPEN | Open a MIDI file (`.mid`) to play |
 | MIDI IN | Play from a MIDI keyboard (lit while one is connected) |

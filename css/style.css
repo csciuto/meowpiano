@@ -241,3 +241,9 @@ body::before {
 .btn-skip:disabled, .btn-open:disabled { opacity: 0.3; cursor: not-allowed; }
 .toast.toast-save { background: #44DDFF; box-shadow: 0 0 18px rgba(68,221,255,0.75); }
 .toast.toast-save::after { border-top-color: #44DDFF; }
+/* the song's name: shown with a song, click to type one */
+.song-name { font-family: "Press Start 2P", monospace; font-size: 8px; color: #BB99FF; background: transparent; border: 0;
+  border-bottom: 1px dashed transparent; text-align: center; width: min(420px, 86vw); padding: 4px 0; margin: -6px 0 -4px; }
+.song-name::placeholder { color: #5A4C80; }
+.song-name:hover { border-bottom-color: #5A4C80; }
+.song-name:focus { outline: none; border-bottom-color: #BB99FF; color: #fff; }

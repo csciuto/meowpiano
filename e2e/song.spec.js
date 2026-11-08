@@ -107,3 +107,32 @@ test('Clear removes the take and the link', async ({ page }) => {
   await expect(page.locator('#btnShare')).toBeDisabled();
   expect(page.url()).not.toContain('#song=');
 });
+
+test('name a recording: the link and the saved file carry it @desktop', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.keyboard.press('Enter');
+  for (const k of ['a', 'g']) { await page.keyboard.down(k); await page.waitForTimeout(100); await page.keyboard.up(k); }
+  await page.keyboard.press('Enter');
+  const name = page.locator('#songName');
+  await expect(name).toBeVisible();
+  await expect(name).toHaveValue('');
+  await name.click();
+  await page.keyboard.type('Silas sings: a test');               // letters don't play, Enter doesn't record
+  await page.keyboard.press('Enter');
+  expect(await st(page, 'state.isRec')).toBe(false);
+  expect(await st(page, 'Object.keys(state.liveVoices).length')).toBe(0);
+  await expect(name).toHaveValue('Silas sings: a test');
+
+  await page.locator('#btnShare').click();
+  await expect(page.locator('#status')).toHaveText(/^link copied/);
+  const other = await context.newPage();
+  await other.goto(page.url());
+  await expect(other.locator('#status')).toHaveText(/^Silas sings: a test · 0:0\d · press PLAY$/);
+  await expect(other.locator('#songName')).toHaveValue('Silas sings: a test');
+
+  const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#btnSave').click()]);
+  expect(download.suggestedFilename()).toBe('Silas sings a test.mid');
+  const { fromMidi } = await import('../js/midi.js');
+  const { readFileSync } = await import('node:fs');
+  expect(fromMidi(new Uint8Array(readFileSync(await download.path()))).title).toBe('Silas sings: a test');
+});

@@ -7,7 +7,7 @@
  *
  * Writing: one track, 1 tick = 1 ms, notes on channel 1 at velocity 100, the pedal as CC64, the wheel as pitch
  * bend (±2 semitones, the MIDI default). Loop points, grain settings and tuning ride along as text events
- * starting "meowpiano", so a file saved here opens with the same sound.
+ * starting "meowpiano", so a file saved here opens with the same sound and name.
  */
 import { NOTES, BASE_FREQS } from './notes.js';
 import { playable, TICK } from './song.js';
@@ -91,6 +91,7 @@ function readSettings(text, into) {
   const num = k => (kv[k] !== undefined && isFinite(+kv[k]) ? +kv[k] : undefined);
   const map = { ls: 'loopStart', le: 'loopEnd', xf: 'crossfade', grain: 'grainDur', scatter: 'grainOverlap', a4: 'tuning' };
   for (const [k, name] of Object.entries(map)) if (num(k) !== undefined) into[name] = num(k);
+  if (kv.title) try { into.title = decodeURIComponent(kv.title); } catch (_) {}
   return into;
 }
 
@@ -143,7 +144,7 @@ export function fromMidi(bytes) {
   const lastT = all.reduce((m, e) => Math.max(m, e.t), 0);
   // the song's name: what a track without notes (the conductor track, usually) is called
   const withNotes = new Set(list.map(p => p.track));
-  const title = Object.keys(names).map(Number).sort((a, b) => a - b).filter(t => !withNotes.has(t)).map(t => names[t]).find(Boolean) || '';
+  const title = settings?.title || Object.keys(names).map(Number).sort((a, b) => a - b).filter(t => !withNotes.has(t)).map(t => names[t]).find(Boolean) || '';
 
   function build(ids) {
     const chosen = new Set(ids);
@@ -219,7 +220,7 @@ export function toMidi(events, end, settings) {
   meta(0, 0x03, 'meowpiano');
   at(0); out.push(0xff, 0x51, 3, 0x07, 0xa1, 0x20);   // 500,000 µs a quarter: with 500 ticks a quarter, 1 tick = 1 ms
   const f = n => +n.toFixed(4);
-  meta(0, 0x01, `${TAG} ls=${f(settings.loopStart)} le=${f(settings.loopEnd)} xf=${f(settings.crossfade)} grain=${f(settings.grainDur)} scatter=${f(settings.grainOverlap)} a4=${settings.tuning ?? 440}`);
+  meta(0, 0x01, `${TAG} ls=${f(settings.loopStart)} le=${f(settings.loopEnd)} xf=${f(settings.crossfade)} grain=${f(settings.grainDur)} scatter=${f(settings.grainOverlap)} a4=${settings.tuning ?? 440}${settings.title ? ' title=' + encodeURIComponent(settings.title) : ''}`);
   let ls = settings.loopStart, le = settings.loopEnd;
   const held = {};   // note name → MIDI note
   for (const e of playable(events)) {

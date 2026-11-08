@@ -111,6 +111,10 @@ for (const ev of ['pointerdown', 'keydown']) document.addEventListener(ev, wake)
 const OCTAVE_KEYS = { 1: -2, 2: -1, 3: 0, 4: 1, 5: 2 };
 
 document.addEventListener('keydown', e => {
+  if (e.target.matches && e.target.matches('input[type="text"]')) {   // typing a name: no shortcuts
+    if (e.key === 'Enter' || e.key === 'Escape') e.target.blur();
+    return;
+  }
   if (e.repeat) return;
   // checkboxes and LINK / MIDI keep space and arrows; every other key still plays
   const choice = e.target.matches && e.target.matches('input[type="checkbox"], input[type="radio"]');
@@ -141,6 +145,7 @@ document.addEventListener('keydown', e => {
 });
 
 document.addEventListener('keyup', e => {
+  if (e.target.matches && e.target.matches('input[type="text"]')) return;
   if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { keyBendStop(e.key === 'ArrowUp' ? 1 : -1); return; }
   if (e.key === ' ') {
     setSustain(false);

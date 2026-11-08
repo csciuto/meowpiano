@@ -379,7 +379,7 @@ export function initTransport(onRefresh, onStatus) {
   const btnRecord = $('btnRecord'), btnPlay = $('btnPlay'), btnLoop = $('btnLoop'), btnStop = $('btnStop');
   const btnBack = $('btnBack'), btnFwd = $('btnFwd'), btnClear = $('btnClear');
   const btnOpen = $('btnOpen'), btnSave = $('btnSave'), btnShare = $('btnShare');
-  const seek = $('seek');
+  const seek = $('seek'), songName = $('songName');
   _status = onStatus;
 
   // the take: what's loaded or just recorded, where it came from, and its link (made when first shared)
@@ -395,6 +395,8 @@ export function initTransport(onRefresh, onStatus) {
     const has = events.some(e => e.type === 'on');
     for (const b of [btnPlay, btnLoop, btnBack, btnFwd, btnSave, btnShare]) b.disabled = !has;
     seek.hidden = !has;
+    songName.hidden = !has;
+    songName.value = take.title || '';
     seek.max = String(Math.max(1, Math.round(total)));
     showPos(0);
   }
@@ -519,6 +521,14 @@ export function initTransport(onRefresh, onStatus) {
     onStatus('recorded ' + fmtTime(end) + ' · ' + linkNote(link));
   }
 
+  // the name: type one for any song; it goes in the link and the saved file
+  songName.addEventListener('input', () => {
+    take.title = songName.value.trim();
+    if (take.link) take.link = null;   // the link is made again, with the new name, when shared
+    if (location.hash) history.replaceState(null, '', location.pathname);
+    if (state.isPlay) tick();
+  });
+
   // ── links ──
   async function makeLink(events, end, settings, keep) {
     const fit = await fitSong(events, end, { ...settings, title: take.title || undefined }, linkRoom(), keep);
@@ -542,10 +552,12 @@ export function initTransport(onRefresh, onStatus) {
   // ── files ──
   btnSave.addEventListener('click', () => {
     if (!state.recEvents.length) return;
-    const bytes = toMidi(state.recEvents, state.recEnd, settingsNow());
+    const bytes = toMidi(state.recEvents, state.recEnd, { ...settingsNow(), title: take.title || undefined });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([bytes], { type: 'audio/midi' }));
-    a.download = (fileName ? fileName + '-meow' : 'meowpiano-' + new Date().toISOString().slice(0, 16).replace(/[-:]/g, '').replace('T', '-')) + '.mid';
+    const safe = (take.title || '').replace(/[\\/:*?"<>|]+/g, '').trim();
+    a.download = (safe ? safe + (take.kind === 'file' ? ' (meow)' : '')
+      : 'meowpiano-' + new Date().toISOString().slice(0, 16).replace(/[-:]/g, '').replace('T', '-')) + '.mid';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
     onStatus('saved ' + a.download);
@@ -594,10 +606,11 @@ export function initTransport(onRefresh, onStatus) {
     let ids = [...partList.querySelectorAll('input:checked')].map(b => b.value);
     if (midiFile.parts.length === 1) ids = [midiFile.parts[0].id];
     const { events, end } = midiFile.build(ids);
-    setTake(events, end, { kind: 'file', title: midiFile.title || fileName });
+    // a name typed for this file stays when instruments change
+    setTake(events, end, { kind: 'file', title: take.kind === 'file' ? take.title : (midiFile.title || fileName) });
     if (location.hash) history.replaceState(null, '', location.pathname);
     const notes = events.filter(e => e.type === 'on').length;
-    onStatus((midiFile.title || fileName) + ' · ' + fmtTime(end) + ' · ' + notes.toLocaleString('en-US') + ' notes' + (notes ? ' · press PLAY' : ''));
+    onStatus((take.title || fileName) + ' · ' + fmtTime(end) + ' · ' + notes.toLocaleString('en-US') + ' notes' + (notes ? ' · press PLAY' : ''));
   }
 
   // ── buttons ──

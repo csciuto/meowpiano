@@ -100,6 +100,11 @@ initMidiIn(document.getElementById('btnMidiIn'), {
   noteOff(m) { const n = midiHeld[m]; if (n) { delete midiHeld[m]; off(n); } },
   sustain(down) { if (down !== state.sustain) { setSustain(down); updateSustainUI(); } },
   bend: midiBend,
+  allOff() {   // MIDI turned off: let go of everything it was holding
+    for (const m of Object.keys(midiHeld)) this.noteOff(m);
+    if (state.sustain) { setSustain(false); updateSustainUI(); }
+    midiBend(0);
+  },
   status: text => setStatus(text + (text.endsWith('connected') && !soundOn() ? ' · click once for sound' : '')),
   active(on) { document.getElementById('btnMidiIn').setAttribute('aria-pressed', String(on)); },
 });
@@ -213,5 +218,8 @@ initTransport(refreshDisplay, setStatus);
 initVisualizer();
 initDecorations();
 
-boot().then(async () => { if (!(await loadSongFromLink())) setStatus('click a key or press keyboard'); });
+// the opening hint, unless something already said more (a MIDI keyboard reconnecting, say)
+boot().then(async () => {
+  if (!(await loadSongFromLink()) && !document.getElementById('status').textContent) setStatus('click a key or press keyboard');
+});
 window.addEventListener('hashchange', () => loadSongFromLink());

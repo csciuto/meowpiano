@@ -133,6 +133,17 @@ test('a MIDI keyboard plays, bends, holds the pedal and records @desktop', async
   // remembered: the next visit reconnects without the button
   await page.reload();
   await expect(page.locator('#btnMidiIn')).toHaveAttribute('aria-pressed', 'true');
+  // pressing it again turns it off: held notes let go, the keyboard is ignored, and it stays off
+  await expect(page.locator('#status')).toHaveText(/KeyStep 37 connected/);
+  await send([0x90, 60, 100]);
+  await expect.poll(() => page.evaluate(async () => { const { state } = await import('/js/state.js'); return Object.keys(state.liveVoices).length; })).toBe(1);
+  await page.locator('#btnMidiIn').click();
+  await expect(page.locator('#btnMidiIn')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('#status')).toHaveText('MIDI off');
+  expect(await page.evaluate(() => window.__fakeInput.onmidimessage)).toBe(null);
+  await page.reload();
+  await expect(page.locator('#status')).toHaveText(/click a key/);
+  await expect(page.locator('#btnMidiIn')).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('pause, ⏪ ⏩, and the seek bar start the song anywhere @desktop', async ({ page }) => {

@@ -106,7 +106,7 @@ Drag the wheel on the right side of the keyboard up or down to bend pitch up to 
 | Name | The song's name, above the seek bar: type one for any song ("untitled" until you do). Links and saved files carry it. |
 | Seek bar | Drag or click to move anywhere in the song (arrow keys when focused) |
 | OPEN | Open a MIDI file (`.mid`) to play |
-| MIDI IN | Play from a MIDI keyboard (lit while one is connected) |
+| MIDI IN | Play from a MIDI keyboard (lit while on); press again to turn it off |
 | SAVE | Save the song as a MIDI file (`.mid`), all of it |
 | SHARE | Put the song in the address and copy the link |
 | SUSTAIN | Sustain pedal while pressed |
@@ -131,7 +131,7 @@ compressed.
 wheel or strip and sustain pedal play the piano live and record like the computer keys, with no limit on how
 many keys are down at once (laptop keyboards often stop at three or four). Notes sound at their own pitch,
 middle C = C4; the keyboard's octave buttons move them, not the app's. Once connected it reconnects on
-later visits; the browser needs one click on the page before it makes sound.
+later visits until you press MIDI IN again to turn it off (so the keyboard can play another app alone); the browser needs one click on the page before it makes sound.
 
 ### MIDI files
 

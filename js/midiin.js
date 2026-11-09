@@ -3,13 +3,14 @@
  * Firefox (Safari has no Web MIDI). Notes play at their own pitch, middle C = C4, whatever the app's octave;
  * the keyboard's own octave buttons move them. Velocity is ignored, as everywhere here.
  *
- * Once turned on, it reconnects on later visits and picks up keyboards plugged in later.
+ * Once turned on, it reconnects on later visits and picks up keyboards plugged in later. Pressing MIDI IN again
+ * turns it off (and keeps it off), so the keyboard can play another app (GarageBand, say) alone.
  */
 import { keyFor } from './midi.js';
 
 const KEY = 'meowpiano.midiIn';
 
-/** hooks: {noteOn(midiNote), noteOff(midiNote), sustain(down), bend(semitones -2…2), status(text), active(on)} */
+/** hooks: {noteOn(midiNote), noteOff(midiNote), sustain(down), bend(semitones -2…2), allOff(), status(text), active(on)} */
 export function initMidiIn(button, hooks) {
   let access = null;
   const names = () => access ? [...access.inputs.values()].map(i => i.name).filter(Boolean) : [];
@@ -44,7 +45,18 @@ export function initMidiIn(button, hooks) {
     access.onstatechange = attach;
     attach();
   }
-  button.addEventListener('click', () => connect(false));
+  function disconnect() {
+    if (access) {
+      for (const input of access.inputs.values()) input.onmidimessage = null;
+      access.onstatechange = null;
+      access = null;
+    }
+    try { localStorage.removeItem(KEY); } catch (_) {}
+    hooks.allOff();
+    hooks.active(false);
+    hooks.status('MIDI off');
+  }
+  button.addEventListener('click', () => (access ? disconnect() : connect(false)));
   let remembered = false;
   try { remembered = localStorage.getItem(KEY) === '1'; } catch (_) {}
   if (remembered) connect(true);

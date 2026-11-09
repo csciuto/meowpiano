@@ -1,5 +1,7 @@
 # Meow Piano
 
+How it's built (technologies, architecture, formats): [ARCHITECTURE.md](ARCHITECTURE.md).
+
 A browser-based piano that plays real meow samples (from Silas, a real cat; see [Credits](#credits)). Each key plays the actual recording, pitch-shifted to the correct note. Holding a key (or the sustain pedal) triggers a granular synthesis engine that keeps the "EO" vowel of the meow alive indefinitely — no looping seam, no oscillators. Built with vanilla JS and the Web Audio API. Deployed to GitHub Pages — no build step required.
 
 ## Live demo

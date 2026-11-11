@@ -29,10 +29,15 @@ Usage
     pip install librosa soundfile numpy scipy
     python scripts/process_samples.py
 
+    # the other pitch shifter (see shift_keeping_formants), into a folder of its own to compare by ear:
+    pip install praat-parselmouth
+    python scripts/process_samples.py --formant --out /tmp/notes-formant
+
 After running, update js/state.js with the printed loopStart / loopEnd values.
 """
 
 import os
+import sys
 import numpy as np
 
 try:
@@ -148,6 +153,27 @@ def remove_hum(y, sr, over=2.0, floor=0.05, n_fft=4096, hop=1024):
     return out[:len(y)]
 
 
+def shift_keeping_formants(y, sr, n_steps):
+    """
+    Pitch-shift by re-spacing the meow's own pitch periods (PSOLA, through Praat), which moves the
+    pitch but leaves the voice's resonances (formants) where they are.
+
+    The phase vocoder moves everything together: up an octave, the cat's 3 kHz resonance lands at 6 kHz
+    and the top keys measure about 15 dB hotter above 4 kHz than the recording, while the bottom keys
+    go dull. This keeps that band within a few dB of the recording on every key.
+    """
+    import parselmouth
+    from parselmouth.praat import call
+    snd = parselmouth.Sound(y.astype(np.float64), sampling_frequency=sr)
+    # the meow runs about 600-650 Hz; look for pitch between 300 and 1200
+    man = call(snd, "To Manipulation", 0.005, 300, 1200)
+    tier = call(man, "Extract pitch tier")
+    call(tier, "Multiply frequencies", snd.xmin, snd.xmax, 2 ** (n_steps / 12))
+    call([tier, man], "Replace pitch tier")
+    out = call(man, "Get resynthesis (overlap-add)").values[0]
+    return out[:len(y)] if len(out) >= len(y) else np.pad(out, (0, len(y) - len(out)))
+
+
 def semitones_from_root(freq, root=SAMPLE_ROOT):
     return 12.0 * np.log2(freq / root)
 
@@ -159,6 +185,9 @@ def main():
     root_dir   = os.path.join(script_dir, '..')
     src_path   = os.path.join(root_dir, 'sounds', 'meow.ogg')
     out_dir    = os.path.join(root_dir, 'sounds', 'notes')
+    formant    = '--formant' in sys.argv
+    if '--out' in sys.argv:
+        out_dir = sys.argv[sys.argv.index('--out') + 1]
     os.makedirs(out_dir, exist_ok=True)
 
     print(f"Loading {src_path} ...")
@@ -195,14 +224,14 @@ def main():
 
     for name, freq in NOTES:
         n_steps = semitones_from_root(freq)
-        shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=n_steps)
+        shifted = shift_keeping_formants(y, sr, n_steps) if formant else librosa.effects.pitch_shift(y, sr=sr, n_steps=n_steps)
         shifted = bake(shifted)
 
         out_path = os.path.join(out_dir, f"{name}.ogg")
         sf.write(out_path, shifted, sr, format='OGG', subtype='VORBIS')
         print(f"  {name}.ogg  ({n_steps:+.2f} semitones)")
 
-    print(f"\nDone. {len(NOTES)} files written to sounds/notes/")
+    print(f"\nDone. {len(NOTES)} files written to {out_dir}")
     print(f"\nNext steps:")
     print(f"  1. In js/state.js set loopStart={ls_sec:.2f}, loopEnd={le_sec:.2f}")
     print(f"  2. Refresh the browser — no other JS changes needed.")

@@ -23,8 +23,10 @@ export function boot() {
   masterGain.connect(analyser);
   analyser.connect(actx.destination);
 
+  // the page's version goes on each sample's address, so a reload after an update never plays old sounds
+  const version = document.querySelector('[title="Version"]')?.textContent || 'dev';
   return Promise.all(NOTES.map(n =>
-    fetch(`sounds/notes/${toFilename(n.note)}.ogg`)
+    fetch(`sounds/notes/${toFilename(n.note)}.ogg?v=${version}`)
       .then(r => r.arrayBuffer())
       .then(ab => actx.decodeAudioData(ab))
       .then(buf => {

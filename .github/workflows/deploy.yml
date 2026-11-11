@@ -19,6 +19,6 @@ concurrency:
 
 jobs:
   app:
-    uses: csciuto/app-template/.github/workflows/app.yml@v1
+    uses: csciuto/app-template/.github/workflows/app.yml@v3
     with:
       stamp: index.html help.html

@@ -7,17 +7,20 @@ What it does
 1. Loads sounds/meow.ogg (the source Silas recording).
 2. Finds the steady-state "oh" vowel region via RMS energy, then snaps the
    loop IN and OUT points to zero-crossings so the waveform joins cleanly.
-3. Bakes a short crossfade at the loop boundary so the looping tail blends
+3. High-passes at 200 Hz: the recording has rumble (8-80 Hz, room or handling
+   noise) under the whole clip, heard as a faint beat. The meow itself never
+   goes below ~600 Hz, so nothing of the cat is lost.
+4. Bakes a short crossfade at the loop boundary so the looping tail blends
    seamlessly into the loop head — no more meowowow.
-4. Uses librosa's phase-vocoder pitch_shift to generate one OGG per note.
+5. Uses librosa's phase-vocoder pitch_shift to generate one OGG per note.
    Because the phase vocoder preserves duration, every note plays for exactly
    the same length of time regardless of pitch.
-5. Writes sounds/notes/{name}.ogg  (# → s, e.g. Cs4.ogg).
-6. Prints the detected loop points so you can paste them into state.js.
+6. Writes sounds/notes/{name}.ogg  (# → s, e.g. Cs4.ogg).
+7. Prints the detected loop points so you can paste them into state.js.
 
 Usage
 -----
-    pip install librosa soundfile numpy
+    pip install librosa soundfile numpy scipy
     python scripts/process_samples.py
 
 After running, update js/state.js with the printed loopStart / loopEnd values.
@@ -28,13 +31,16 @@ import numpy as np
 
 try:
     import librosa
+    from scipy.signal import butter, sosfiltfilt
     import soundfile as sf
 except ImportError:
     raise SystemExit(
-        "Missing dependencies. Run:\n  pip install librosa soundfile numpy"
+        "Missing dependencies. Run:\n  pip install librosa soundfile numpy scipy"
     )
 
 # ── Note table (mirrors js/notes.js) ─────────────────────────────────────────
+
+HIGHPASS_HZ = 200.0  # below the meow (~600 Hz), above the rumble (8-80 Hz)
 
 SAMPLE_ROOT = 440.0  # Hz — the pitch the source recording is treated as
 
@@ -149,6 +155,11 @@ def main():
     le_sec = le / sr
     print(f"\nDetected loop region: {ls_sec:.3f}s – {le_sec:.3f}s")
     print(f"  *** Update js/state.js: loopStart={ls_sec:.2f}, loopEnd={le_sec:.2f} ***\n")
+
+    # After loop detection (which the rumble has always been part of), so the
+    # baked crossfade stays where it was. Zero-phase, so timing doesn't move.
+    y = sosfiltfilt(butter(8, HIGHPASS_HZ, 'highpass', fs=sr, output='sos'), y)
+    print(f"  high-passed at {HIGHPASS_HZ:.0f} Hz")
 
     # Override fade_ms sr estimate with actual sr
     def bake(y_in):

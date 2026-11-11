@@ -66,7 +66,8 @@ events: `on` (note, frequency, loop points, time), `off`, `sustain_on/off`, `pit
 ## The sound
 
 There is one recording of a cat (Silas). `scripts/process_samples.py` pitch-shifts it offline into 25 samples
-of equal length (phase vocoder, so higher notes don't get shorter). Notes outside those two octaves, octave
+of equal length (phase vocoder, so higher notes don't get shorter). First it high-passes the recording at 200 Hz:
+the original has low rumble (8–80 Hz) that was heard as a faint beat, and the meow itself stays above ~600 Hz. Notes outside those two octaves, octave
 shifts, the pitch wheel and tuning are all `playbackRate` on top of the nearest sample.
 
 A held note can't just loop the sample (it would sound like "meowowow"), so each voice is two layers:

@@ -10,13 +10,19 @@ What it does
 3. High-passes at 200 Hz: the recording has rumble (8-80 Hz, room or handling
    noise) under the whole clip, heard as a faint beat. The meow itself never
    goes below ~600 Hz, so nothing of the cat is lost.
-4. Bakes a short crossfade at the loop boundary so the looping tail blends
+4. Removes a steady hum (~120 Hz fundamental, overtones at 237, 361, 478,
+   597 Hz...; likely a fan or motor in the room) by spectral subtraction:
+   whatever is steady through the whole clip (each frequency's quiet level,
+   its 20th percentile over time) is subtracted. The meow is far louder than
+   that background, so it loses only ~0.6 dB. Notch filters wouldn't do: the
+   597 Hz overtone sits on the meow's own pitch (600-650 Hz).
+5. Bakes a short crossfade at the loop boundary so the looping tail blends
    seamlessly into the loop head — no more meowowow.
-5. Uses librosa's phase-vocoder pitch_shift to generate one OGG per note.
+6. Uses librosa's phase-vocoder pitch_shift to generate one OGG per note.
    Because the phase vocoder preserves duration, every note plays for exactly
    the same length of time regardless of pitch.
-6. Writes sounds/notes/{name}.ogg  (# → s, e.g. Cs4.ogg).
-7. Prints the detected loop points so you can paste them into state.js.
+7. Writes sounds/notes/{name}.ogg  (# → s, e.g. Cs4.ogg).
+8. Prints the detected loop points so you can paste them into state.js.
 
 Usage
 -----
@@ -31,7 +37,7 @@ import numpy as np
 
 try:
     import librosa
-    from scipy.signal import butter, sosfiltfilt
+    from scipy.signal import butter, sosfiltfilt, stft, istft
     import soundfile as sf
 except ImportError:
     raise SystemExit(
@@ -132,6 +138,16 @@ def bake_crossfade(y, loop_start, loop_end, fade_ms=15):
     return out
 
 
+def remove_hum(y, sr, over=2.0, floor=0.05, n_fft=4096, hop=1024):
+    """Spectral subtraction of the clip's steady background (the hum)."""
+    _, _, Z = stft(y, sr, nperseg=n_fft, noverlap=n_fft - hop)
+    mag = np.abs(Z)
+    steady = np.percentile(mag, 20, axis=1, keepdims=True)
+    gain = np.maximum(1 - over * steady / (mag + 1e-12), floor)
+    _, out = istft(Z * gain, sr, nperseg=n_fft, noverlap=n_fft - hop)
+    return out[:len(y)]
+
+
 def semitones_from_root(freq, root=SAMPLE_ROOT):
     return 12.0 * np.log2(freq / root)
 
@@ -160,6 +176,8 @@ def main():
     # baked crossfade stays where it was. Zero-phase, so timing doesn't move.
     y = sosfiltfilt(butter(8, HIGHPASS_HZ, 'highpass', fs=sr, output='sos'), y)
     print(f"  high-passed at {HIGHPASS_HZ:.0f} Hz")
+    y = remove_hum(y, sr)
+    print("  removed the steady hum")
 
     # Override fade_ms sr estimate with actual sr
     def bake(y_in):

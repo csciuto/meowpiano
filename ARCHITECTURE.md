@@ -66,8 +66,10 @@ events: `on` (note, frequency, loop points, time), `off`, `sustain_on/off`, `pit
 ## The sound
 
 There is one recording of a cat (Silas). `scripts/process_samples.py` pitch-shifts it offline into 25 samples
-of equal length (phase vocoder, so higher notes don't get shorter). First it high-passes the recording at 200 Hz:
-the original has low rumble (8–80 Hz) that was heard as a faint beat, and the meow itself stays above ~600 Hz. Notes outside those two octaves, octave
+of equal length (phase vocoder, so higher notes don't get shorter). First it cleans the recording: a 200 Hz
+high-pass for low rumble (8–80 Hz), then spectral subtraction of a steady hum (about 120 Hz with overtones, likely
+a fan): each frequency's quiet level over the clip is subtracted, which takes the hum down 20+ dB and the meow
+under 1 dB. Notch filters wouldn't work, since one overtone (597 Hz) sits on the meow's own pitch. Notes outside those two octaves, octave
 shifts, the pitch wheel and tuning are all `playbackRate` on top of the nearest sample.
 
 A held note can't just loop the sample (it would sound like "meowowow"), so each voice is two layers:

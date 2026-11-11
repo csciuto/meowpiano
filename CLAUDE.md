@@ -16,5 +16,9 @@ Commit and push freely once tests pass.
 
 `help.html` with clips in `help/*.webp` (animated WebP, silent), recorded by `npm run help-clips [name…]`
 (`tools/help-clips.js`: Playwright drives the piano with a drawn cursor and key cap; sharp writes the WebP).
-Re-record a clip whenever the UI it shows changes. Its "Hear Canon in D" link is `songs/canon-in-d.mid` as a
-song link; a unit test checks it still opens, so regenerate it if the link format changes.
+Re-record a clip whenever the UI it shows changes. Its "Hear Canon in D" and "Hear Brahms' Lullaby" links are `songs/*.mid` as
+song links; unit tests check they still open. `node scripts/demo-links.js` rewrites them: run it if a demo file
+or the link format changes.
+
+`js/vendor/midi-in.js` is the shared MIDI input module (also in Goob Nonna), pinned in `package.json`; don't edit
+it here.

@@ -32,11 +32,12 @@ js/
   controls.js     panels and transport: octave, loop/grain/tuning, pitch wheel, REC/PLAY/seek/OPEN/SAVE/SHARE
   song.js         the song-link format; playback helpers (spring-back, state at a time, cutting to fit)
   midi.js         .mid read/write; turning a file's instruments into piano events
-  midiin.js       live MIDI keyboard input
+  vendor/midi-in.js   live MIDI keyboard input (shared module; `npm run vendor` refreshes it)
   dsp.js          loop-window search (tested; not used at runtime)
 sounds/           meow.ogg (source) and notes/*.ogg (one pre-pitched sample per key)
-songs/            canon-in-d.mid (test and demo; made by scripts/make-canon.js)
-scripts/          process_samples.py (makes sounds/notes), make-canon.js
+songs/            canon-in-d.mid, brahms-lullaby.mid (tests and demos; made by scripts/make-*.js)
+scripts/          process_samples.py (makes sounds/notes), make-canon.js, make-lullaby.js,
+                  demo-links.js (rewrites help.html's Hear links from songs/)
 tools/            help-clips.js (records help/*.webp)
 tests/, e2e/      unit tests (Vitest) and browser tests (Playwright, desktop + phone, axe)
 ```
@@ -48,7 +49,7 @@ tests/, e2e/      unit tests (Vitest) and browser tests (Playwright, desktop + p
 ```mermaid
 flowchart LR
   K[mouse / touch / computer keys] --> M[main.js]
-  MI[MIDI keyboard<br/>midiin.js] --> M
+  MI[MIDI keyboard<br/>vendor/midi-in.js] --> M
   M -->|note on/off, pedal, bend| A[audio.js<br/>voices]
   M -->|while recording| R[(state.recEvents)]
   F[.mid file] -->|midi.js fromMidi| R
@@ -107,12 +108,16 @@ link versions still open (`unpack` reads versions 1–3).
 - **Reading** (`fromMidi`): parses format 0 and 1 files: running status, tempo maps (and SMPTE timing),
   velocity-0 note-offs, sysex skipped. Each track-and-channel with notes is an instrument; channel 10 is
   drums, off by default. Notes outside C2–C8 fold by octaves. Since voices are keyed by key name, two notes of
-  the same pitch class in different octaves get different keys (`keyFor`). Velocity is ignored. The song's
+  the same pitch class in different octaves get different keys (`keyFor`). Each note keeps its velocity. The song's
   name comes from a track without notes (the conductor track) if there is one.
-- **Writing** (`toMidi`): one track, 1 tick = 1 ms, notes, CC64 pedal, pitch bend at ±2 semitones. Settings
+- **Writing** (`toMidi`): one track, 1 tick = 1 ms, notes with velocity (100 where a note has none), CC64 pedal, pitch bend at ±2 semitones. Settings
   and name ride along as text events starting `meowpiano`, so a saved file reopens with the same sound.
-- **Live input** (`midiin.js`): note on/off, CC64, pitch bend into the same paths as the computer keys.
+- **Live input** (`vendor/midi-in.js`, the `midi-in` module shared with Goob Nonna, copied in at the version
+  `package.json` pins): note on/off with velocity, CC64, pitch bend into the same paths as the computer keys.
   On/off is remembered in `localStorage`.
+- **Velocity.** Each voice plays through its own gain, `velocity^1.3` (no velocity = full level, so the
+  computer keys sound as they always did). Velocity is recorded, saved to MIDI, and carried in links as one
+  byte a note in its own column, which is empty when no note has one.
 
 ## Testing and deploy
 
@@ -126,7 +131,7 @@ link versions still open (`unpack` reads versions 1–3).
 
 ## Known limits
 
-- One loudness for every note (no velocity).
+- The computer keys and the mouse play at one loudness; only MIDI carries velocity.
 - The wheel bends ±2 semitones; MIDI files with wider bend ranges are squeezed into that.
 - Laptop keyboards register only a few keys at once (hardware), so big chords need the pedal or a MIDI keyboard.
 - Help clips are silent (animated WebP has no audio).

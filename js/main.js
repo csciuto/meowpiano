@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { NOTES, keyMap, noteMap, BASE_FREQS } from './notes.js';
-import { initMidiIn, keyFor } from './midiin.js';
+import { initMidiIn } from './vendor/midi-in.js';
+import { keyFor } from './midi.js';
 import { boot, noteOn, noteOff, analyser, soundOn, wake } from './audio.js';
 import { initKeyboard } from './keyboard.js';
 import {
@@ -65,7 +66,7 @@ function on(n) {
   noteOn(n, refreshDisplay);
   if (state.isRec) {
     state.recEvents.push({
-      type: 'on', note: n.note, freq: n.freq,
+      type: 'on', note: n.note, freq: n.freq, ...(n.vel !== undefined && { vel: n.vel }),
       sus: state.sustain, ls: state.loopStart, le: state.loopEnd,
       dec: state.decay, t: performance.now() - state.recStart,
     });
@@ -89,17 +90,17 @@ function off(n) {
 // the other off); the key lights up and the note records like any other.
 
 const midiHeld = {};   // MIDI note → the key playing it
-initMidiIn(document.getElementById('btnMidiIn'), {
-  noteOn(m) {
+const midiIn = initMidiIn(document.getElementById('btnMidiIn'), {
+  noteOn(m, vel) {
     if (midiHeld[m]) off(midiHeld[m]);
     const k = keyFor(m, new Set(Object.keys(state.liveVoices)));
-    const n = { ...noteMap[k.note], freq: BASE_FREQS[k.note] * Math.pow(2, k.oct), fixed: true };
+    const n = { ...noteMap[k.note], freq: BASE_FREQS[k.note] * Math.pow(2, k.oct), fixed: true, vel };
     midiHeld[m] = n;
     boot().then(() => on(n));
   },
   noteOff(m) { const n = midiHeld[m]; if (n) { delete midiHeld[m]; off(n); } },
   sustain(down) { if (down !== state.sustain) { setSustain(down); updateSustainUI(); } },
-  bend: midiBend,
+  bend: v => midiBend(Math.round(v * 200) / 100),      // the wheel bends two semitones each way; whole cents
   allOff() {   // MIDI turned off: let go of everything it was holding
     for (const m of Object.keys(midiHeld)) this.noteOff(m);
     if (state.sustain) { setSustain(false); updateSustainUI(); }
@@ -107,7 +108,8 @@ initMidiIn(document.getElementById('btnMidiIn'), {
   },
   status: text => setStatus(text + (text.endsWith('connected') && !soundOn() ? ' · click once for sound' : '')),
   active(on) { document.getElementById('btnMidiIn').setAttribute('aria-pressed', String(on)); },
-});
+}, { storageKey: 'meowpiano.midiIn' });
+window.__midiIn = midiIn.feed;   // test hook: bytes as if a keyboard sent them
 
 for (const ev of ['pointerdown', 'keydown']) document.addEventListener(ev, wake);
 

@@ -137,7 +137,7 @@ test('name a recording: the link and the saved file carry it @desktop', async ({
   expect(fromMidi(new Uint8Array(readFileSync(await download.path()))).title).toBe('Silas sings: a test');
 });
 
-test('help: linked from the piano, and Hear Canon in D loads it', async ({ page }) => {
+test('help: linked from the piano, and the two Hear links load their songs', async ({ page }) => {
   await expect(page.locator('#helpLink')).toBeVisible();
   await page.locator('#helpLink').click();
   await expect(page.locator('h1')).toHaveText('How to play Meow Piano');
@@ -145,6 +145,9 @@ test('help: linked from the piano, and Hear Canon in D loads it', async ({ page 
     await img.scrollIntoViewIfNeeded();
     await expect.poll(() => img.evaluate(el => el.complete && el.naturalWidth)).toBe(900);
   }
-  await page.locator('a.hear').click();
+  await page.locator('a.hear', { hasText: 'Canon' }).click();
   await expect(page.locator('#status')).toHaveText('Canon in D · 1:51 · press PLAY');
+  await page.goBack();
+  await page.locator('a.hear', { hasText: 'Lullaby' }).click();
+  await expect(page.locator('#status')).toHaveText("Brahms' Lullaby · 1:32 · press PLAY");
 });

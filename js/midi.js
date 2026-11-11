@@ -3,9 +3,9 @@
  *
  * Reading: every (track, channel) with notes is a part. `fromMidi` lists the parts; `build` turns the chosen
  * ones into recorded events (song.js) so they play, show and share like a recording. Notes fold into the
- * range the piano reaches (C2–C8); every note plays at one loudness (velocity is ignored).
+ * range the piano reaches (C2–C8); each note keeps its velocity (how hard it was hit), which sets its loudness.
  *
- * Writing: one track, 1 tick = 1 ms, notes on channel 1 at velocity 100, the pedal as CC64, the wheel as pitch
+ * Writing: one track, 1 tick = 1 ms, notes on channel 1 at their velocity (100 for notes played without one), the pedal as CC64, the wheel as pitch
  * bend (±2 semitones, the MIDI default). Loop points, grain settings and tuning ride along as text events
  * starting "meowpiano", so a file saved here opens with the same sound and name.
  */
@@ -58,7 +58,7 @@ function readTrack(bytes, i, stop) {
       if (type === 0xc0) evs.push({ tick, kind: 'program', ch, value: a });
     } else {
       const a = bytes[i++], c = bytes[i++];
-      if (type === 0x90 && c > 0) evs.push({ tick, kind: 'on', ch, note: a });
+      if (type === 0x90 && c > 0) evs.push({ tick, kind: 'on', ch, note: a, vel: c / 127 });
       else if (type === 0x80 || type === 0x90) evs.push({ tick, kind: 'off', ch, note: a });
       else if (type === 0xb0 && a === 64) evs.push({ tick, kind: 'pedal', ch, down: c >= 64 });
       else if (type === 0xe0) evs.push({ tick, kind: 'bend', ch, value: a | (c << 7) });
@@ -174,7 +174,7 @@ export function fromMidi(bytes) {
         const k = keyFor(e.note, new Set(byName.keys()));
         sounding.set(key, k.note);
         byName.set(k.note, (byName.get(k.note) || 0) + 1);
-        events.push({ type: 'on', note: k.note, freq: BASE_FREQS[k.note] * Math.pow(2, k.oct), ls, le, t: e.t });
+        events.push({ type: 'on', note: k.note, freq: BASE_FREQS[k.note] * Math.pow(2, k.oct), ls, le, t: e.t, vel: e.vel });
         end = Math.max(end, e.t);
       } else if (e.kind === 'off') off(id + ':' + e.note, e.t);
       else if (e.kind === 'pedal') {
@@ -229,7 +229,7 @@ export function toMidi(events, end, settings) {
       const m = Math.max(0, Math.min(127, midiNote(e.freq)));
       if (held[e.note] !== undefined) { at(e.t); out.push(0x80, held[e.note], 0); }
       held[e.note] = m;
-      at(e.t); out.push(0x90, m, 100);
+      at(e.t); out.push(0x90, m, e.vel === undefined ? 100 : Math.max(1, Math.min(127, Math.round(e.vel * 127))));
     } else if (e.type === 'off') {
       if (held[e.note] === undefined) continue;
       at(e.t); out.push(0x80, held[e.note], 0); delete held[e.note];

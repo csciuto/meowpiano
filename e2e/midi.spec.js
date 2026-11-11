@@ -208,3 +208,30 @@ test('keys light by the pitch sounding; notes out of view are counted, and octav
   await page.locator('#btnStop').click();
   await expect(page.locator('#lowMore')).toHaveText('');
 });
+
+test('how hard a MIDI key is hit sets how loud it is, live, recorded and played back @desktop', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('.key').first().click();                  // start the sound
+  const level = () => page.evaluate(async () => { const { state } = await import('/js/state.js'); return Object.values({ ...state.liveVoices, ...state.pbVoices }).map(v => +v.out.gain.value.toFixed(3)); });
+  await page.keyboard.press('Enter');                          // record
+  await page.evaluate(() => window.__midiIn([0x90, 60, 127]));
+  await expect.poll(level).toEqual([1]);
+  await page.evaluate(() => window.__midiIn([0x80, 60, 0]));
+  await page.evaluate(() => window.__midiIn([0x90, 62, 40]));
+  await expect.poll(level).toContain(+((40 / 127) ** 1.3).toFixed(3));
+  await page.evaluate(() => window.__midiIn([0x80, 62, 0]));
+  await page.keyboard.down('a');                               // a computer key: no velocity, full level
+  await expect.poll(async () => (await level()).at(-1)).toBe(1);
+  await page.keyboard.up('a');
+  await page.keyboard.press('Enter');                          // stop
+  const rec = await page.evaluate(async () => { const { state } = await import('/js/state.js'); return state.recEvents.filter(e => e.type === 'on').map(e => e.vel === undefined ? null : Math.round(e.vel * 127)); });
+  expect(rec).toEqual([127, 40, null]);
+  // the link carries it
+  const link = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js'); const { fitSong, readSong } = await import('/js/song.js');
+    const set = { loopStart: 0.26, loopEnd: 0.46, crossfade: 0.02, grainDur: 0.1, grainOverlap: 0.5, tuning: 440 };
+    const fit = await fitSong(state.recEvents, 3000, set, 7000, 'last');
+    return (await readSong(fit.text)).events.filter(e => e.type === 'on').map(e => e.vel === undefined ? null : Math.round(e.vel * 127));
+  });
+  expect(link).toEqual([127, 40, null]);
+});

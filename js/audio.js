@@ -43,10 +43,10 @@ export function boot() {
 export const GRAIN_CURVE = Float32Array.from({ length: 65 },
   (_, i) => Math.sin(Math.PI * i / 64) * Math.sqrt(2 / 3));
 
-function startGranular(buf, rateRef, ls, le) {
+function startGranular(buf, rateRef, ls, le, out) {
   const gainNode = actx.createGain();
   gainNode.gain.value = 0;
-  gainNode.connect(masterGain);
+  gainNode.connect(out);
 
   let running = true;
   let nextTime = actx.currentTime;
@@ -83,10 +83,21 @@ function startGranular(buf, rateRef, ls, le) {
 // noteName  — e.g. "C#4"
 // freq      — desired playback frequency
 // useSustain — true: M→granular EO (holds until released); false: recording plays once
+// vel       — how hard the key was hit, 0..1; leave out for full level
 // pitch wheel and tuning together, as a playback-rate multiplier
 const pitchMult = () => Math.pow(2, state.pitchBend / 12) * (state.tuning / 440);
 
-export function createVoice(noteName, freq, useSustain, ls, le) {
+/**
+ * How loud a note is for how hard its key was hit (velocity 0..1). No velocity (the mouse, the computer
+ * keyboard) is full level, as it always was; a MIDI key's usual 100 of 127 comes out about 3 dB under that.
+ */
+export const velocityGain = vel => (vel === undefined || vel === null ? 1 : Math.max(0, Math.min(1, vel)) ** 1.3);
+
+export function createVoice(noteName, freq, useSustain, ls, le, vel) {
+  // everything the voice plays (attack, held cloud, tail) goes through its own level
+  const out = actx.createGain();
+  out.gain.value = velocityGain(vel);
+  out.connect(masterGain);
   const bend = pitchMult();
   const rate = (freq / BASE_FREQS[noteName]) * bend;
   const t0   = actx.currentTime;
@@ -104,24 +115,24 @@ export function createVoice(noteName, freq, useSustain, ls, le) {
     attackGain.gain.setValueAtTime(1.0, t0 + ls);
     attackGain.gain.linearRampToValueAtTime(0, xEnd);
     src.connect(attackGain);
-    attackGain.connect(masterGain);
+    attackGain.connect(out);
 
     // EO: granular fades in as attack fades out; holds until released
     const rateRef  = { value: rate };
-    const granular = startGranular(noteBufs[noteName], rateRef, ls, le);
+    const granular = startGranular(noteBufs[noteName], rateRef, ls, le, out);
     granular.gainNode.gain.setValueAtTime(0, t0 + ls);
     granular.gainNode.gain.linearRampToValueAtTime(1.0, xEnd);
 
     src.start();
-    return { src, granular, freq, noteName, gain: granular.gainNode, attackGain, t0, ls };
+    return { src, granular, freq, noteName, gain: granular.gainNode, attackGain, t0, ls, out };
   } else {
     // No sustain: recording plays once in full
     const gain = actx.createGain();
     gain.gain.value = 1.0;
     src.connect(gain);
-    gain.connect(masterGain);
+    gain.connect(out);
     src.start();
-    return { src, gain, granular: null };
+    return { src, gain, granular: null, out };
   }
 }
 
@@ -164,7 +175,7 @@ function cutVoice(v, noteName, voices = state.liveVoices) {
   const tail = actx.createBufferSource();
   tail.buffer = noteBufs[noteName];
   tail.playbackRate.value = (v.freq / BASE_FREQS[v.noteName]) * pitchMult();
-  tail.connect(masterGain);
+  tail.connect(v.out);
   tail.start(0, state.loopEnd);
   if (v.onEnd) tail.onended = v.onEnd;
 }
@@ -183,7 +194,7 @@ export function noteOn(n, onEnd) {
   // Like a piano: the note holds while the key is down, and the pedal keeps it
   // going after the key comes up (including notes already held when the pedal
   // goes down). Cleanup happens in releaseVoice / cutVoice.
-  const v = createVoice(n.note, n.freq, true, state.loopStart, state.loopEnd);
+  const v = createVoice(n.note, n.freq, true, state.loopStart, state.loopEnd, n.vel);
   v.onEnd = onEnd;
   v.fixed = !!n.fixed;   // a MIDI keyboard note: its own pitch, not the app's octave
   state.liveVoices[n.note] = v;
@@ -229,7 +240,7 @@ export function applyPitchToLiveVoices(noteMap) {
 
 // ── Playback voices (recorder playback) ──────────────────────────────
 
-export function pbNoteOn(n, freq, useSustain, ls, le, dec, onEnd) {
+export function pbNoteOn(n, freq, useSustain, ls, le, dec, onEnd, vel) {
   if (!noteBufs[n.note] || !actx) return;
   if (state.pbVoices[n.note]) {
     const old = state.pbVoices[n.note];
@@ -237,7 +248,7 @@ export function pbNoteOn(n, freq, useSustain, ls, le, dec, onEnd) {
     if (old.granular) old.granular.stop();
     delete state.pbVoices[n.note];
   }
-  const v = createVoice(n.note, freq, true, ls, le);
+  const v = createVoice(n.note, freq, true, ls, le, vel);
   v.onEnd = onEnd;
   state.pbVoices[n.note] = v;
 }

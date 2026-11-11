@@ -30,6 +30,17 @@ describe('reading MIDI files', () => {
     expect(end).toBe(3000);
   });
 
+  it('keeps how hard each note was hit, and writes it back', () => {
+    const { events, end } = file.build(['1:0']);
+    const vels = evs => evs.filter(e => e.type === 'on').map(e => Math.round(e.vel * 127));
+    expect(vels(events)).toEqual([100, 100, 90]);
+    const again = fromMidi(toMidi(events, end, SET));
+    expect(vels(again.build(again.parts.map(p => p.id)).events)).toEqual([100, 100, 90]);
+    // a note played without a velocity (the computer keys) is written at 100
+    const plain = fromMidi(toMidi([{ type: 'on', note: 'A4', freq: 440, ls: 0.26, le: 0.46, t: 0 }, { type: 'off', note: 'A4', t: 100 }], 200, SET));
+    expect(vels(plain.build(plain.parts.map(p => p.id)).events)).toEqual([100]);
+  });
+
   it('mixes the chosen parts; notes too low fold up into reach', () => {
     const { events } = file.build(['1:0', '2:1']);
     expect(ons(events)).toEqual([[60, 0], [36, 0], [64, 500], [72, 2000], [36, 2000]]);   // MIDI 24 (C1) → C2
@@ -100,9 +111,10 @@ describe('the Canon in D test file (songs/canon-in-d.mid, made by scripts/make-c
   it("help.html's Hear Canon in D link opens this song", async () => {
     const { readSong } = await import('../js/song.js');
     const html = readFileSync(new URL('../help.html', import.meta.url), 'utf8');
-    const song = await readSong(html.match(/#song=([\w-]+)"/)[1]);
+    const song = await readSong(html.match(/#song=([\w-]+)">▶ Hear Canon/)[1]);
     expect(song.settings.title).toBe('Canon in D');
     expect(song.events.filter(e => e.type === 'on').length).toBe(588);
+    expect(song.events.filter(e => e.type === 'on').every(e => e.vel > 0.5 && e.vel < 0.75)).toBe(true);   // the file's dynamics
   });
 
   it('every note is in D major, and all of it fits in one link', async () => {
@@ -110,5 +122,45 @@ describe('the Canon in D test file (songs/canon-in-d.mid, made by scripts/make-c
     expect([...pcs].every(pc => [1, 2, 4, 6, 7, 9, 11].includes(pc))).toBe(true);
     const fit = await fitSong(all.events, all.end, { ...SET, title: file.title }, LINK_CAP - 'https://corey.sciu.to/meowpiano/#song='.length);
     expect(fit.cut).toBe(false);
+  });
+});
+
+describe("the Brahms' Lullaby demo file (songs/brahms-lullaby.mid, made by scripts/make-lullaby.js)", async () => {
+  const { readFileSync } = await import('node:fs');
+  const file = fromMidi(new Uint8Array(readFileSync(new URL('../songs/brahms-lullaby.mid', import.meta.url))));
+  const all = file.build(file.parts.map(p => p.id));
+  const notes = all.events.filter(e => e.type === 'on');
+
+  it('has its name and two parts: the melody and its accompaniment', () => {
+    expect(file.title).toBe("Brahms' Lullaby");
+    expect(file.parts.map(p => p.name)).toEqual(['Melody', 'Accompaniment']);
+  });
+
+  it('is in F major, in three, played twice, about a minute and a half', () => {
+    const pcs = new Set(notes.map(e => midiNote(e.freq) % 12));
+    expect([...pcs].every(pc => [0, 2, 4, 5, 7, 9, 10].includes(pc))).toBe(true);
+    const melody = file.build(['1:0']).events.filter(e => e.type === 'on');
+    expect(melody.length).toBe(102);
+    expect(melody.slice(0, 5).map(e => midiNote(e.freq))).toEqual([69, 69, 72, 69, 69]);   // A A C, A A (C)
+    expect(midiNote(melody.at(-1).freq)).toBe(65);                                         // ends on F
+    expect(all.end / 1000).toBeGreaterThan(80);
+    expect(all.end / 1000).toBeLessThan(100);
+  });
+
+  it('is played gently, and softer the second time', () => {
+    const vel = notes.map(e => e.vel * 127);
+    expect(Math.max(...vel)).toBeLessThan(85);
+    const half = notes.length / 2, mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+    expect(mean(vel.slice(half))).toBeLessThan(mean(vel.slice(0, half)) - 5);
+  });
+
+  it("help.html's Hear Brahms' Lullaby link opens this song, dynamics included", async () => {
+    const { readSong } = await import('../js/song.js');
+    const html = readFileSync(new URL('../help.html', import.meta.url), 'utf8');
+    const song = await readSong(html.match(/#song=([\w-]+)">▶ Hear Brahms/)[1]);
+    expect(song.settings.title).toBe("Brahms' Lullaby");
+    const back = song.events.filter(e => e.type === 'on');
+    expect(back.length).toBe(notes.length);
+    expect(back.map(e => Math.round(e.vel * 127))).toEqual(notes.map(e => Math.round(e.vel * 127)));
   });
 });

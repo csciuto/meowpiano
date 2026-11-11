@@ -141,9 +141,10 @@ later visits until you press MIDI IN again to turn it off (so the keyboard can p
 named from the file, with its note count, in the file's order (the song's name comes from the file's
 conductor track if it has one, else the file name); all are on except drums (channel 10), which are note numbers for
 drum sounds rather than pitches. The checked instruments play as one meow piano: notes fold into the
-piano's reach (C2–C8), and every note plays at one loudness (velocity is ignored).
+piano's reach (C2–C8), and each note is as loud as its velocity says. A MIDI keyboard works the same way:
+harder is louder. The computer keys and the mouse can't tell, so they play at full level.
 
-**SAVE** writes a one-track `.mid` file: notes, the pedal (CC64) and
+**SAVE** writes a one-track `.mid` file: notes with their velocities, the pedal (CC64) and
 the pitch wheel (pitch bend, ±2 semitones). The loop points, grain settings and tuning go in as text events
 that start `meowpiano`, so a file saved here opens with the same sound; other programs ignore them.
 Recording has no length limit, and SAVE keeps everything. A link holds as much as fits, and a song too long for
@@ -152,7 +153,9 @@ end of a recording, or when a file opens (`LINK: LAST 4:51`). Unchecking instrum
 
 `songs/canon-in-d.mid` is a test and demo file: Pachelbel's Canon in D (public domain), sequenced here by
 `scripts/make-canon.js`. Three violins in canon over the cello's ground, a slowdown at the end, vibrato on
-the last note. Song files from elsewhere are usually someone's copyrighted arrangement: test with them
+the last note. `songs/brahms-lullaby.mid` is a second demo: Brahms's Lullaby (public domain) by
+`scripts/make-lullaby.js`, a melody over a waltz accompaniment with soft dynamics. `node scripts/demo-links.js`
+rewrites the help page's two "Hear" links from these files. Song files from elsewhere are usually someone's copyrighted arrangement: test with them
 locally, but don't commit them.
 
 ### Settings panel

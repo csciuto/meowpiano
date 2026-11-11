@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { applyCrossfadeAtSeam, findStableWindow, nearestZeroCrossing } from '../js/dsp.js';
-import { GRAIN_CURVE } from '../js/audio.js';
+import { GRAIN_CURVE, velocityGain } from '../js/audio.js';
 
 describe('applyCrossfadeAtSeam', () => {
   it('does nothing when crossFrames is 0', () => {
@@ -145,5 +145,21 @@ describe('grain envelope', () => {
   it('starts and ends silent', () => {
     expect(GRAIN_CURVE[0]).toBe(0);
     expect(Math.abs(GRAIN_CURVE.at(-1))).toBeLessThan(1e-9);
+  });
+});
+
+describe('velocity', () => {
+  it('no velocity is full level, as the computer keys always were', () => {
+    expect(velocityGain(undefined)).toBe(1);
+    expect(velocityGain(1)).toBe(1);
+  });
+  it('harder is louder, a usual MIDI hit is a little under full, and it stays within 0..1', () => {
+    expect(velocityGain(0.3)).toBeLessThan(velocityGain(0.6));
+    const usual = 20 * Math.log10(velocityGain(100 / 127));
+    expect(usual).toBeGreaterThan(-4);
+    expect(usual).toBeLessThan(-2);
+    expect(velocityGain(0)).toBe(0);
+    expect(velocityGain(7)).toBe(1);
+    expect(velocityGain(-1)).toBe(0);
   });
 });

@@ -147,13 +147,29 @@ describe('song in a link', () => {
   it('keeps the tuning, and reads version-1 links as A = 440', () => {
     const ev = [{ type: 'on', note: 'A4', freq: 440, ls: 0.26, le: 0.46, t: 0 }];
     expect(unpack(pack(ev, 500, { ...SET, tuning: 432.5 })).settings.tuning).toBe(432.5);
-    const v3 = pack(ev, 500, SET);
+    const v4 = pack(ev, 500, SET);
     // version 1 header: loop in/out (2 bytes each), crossfade, grain, scatter; version 2 adds 4400 (2 bytes),
-    // version 3 the name (here a 0 length byte)
-    const old = Uint8Array.from([1, ...v3.slice(1, 8), ...v3.slice(11)]);
+    // version 3 the name (here a 0 length byte), version 4 a seventh column length (velocities, byte 18)
+    const old = Uint8Array.from([1, ...v4.slice(1, 8), ...v4.slice(11, 18), ...v4.slice(19)]);
+    const v3 = Uint8Array.from([3, ...v4.slice(1, 18), ...v4.slice(19)]);
+    expect(unpack(v3).events.map(e => [e.type, e.note, e.t])).toEqual([['on', 'A4', 0], ['off', 'A4', 500]]);
     const back = unpack(old);
     expect(back.settings.tuning).toBe(440);
     expect(back.events.map(e => [e.type, e.note, e.t])).toEqual([['on', 'A4', 0], ['off', 'A4', 500]]);
+  });
+
+  it('keeps how hard each key was hit, and costs nothing when no key says', () => {
+    const on = (note, t, vel) => ({ type: 'on', note, freq: 440, ls: 0.26, le: 0.46, t, ...(vel !== undefined && { vel }) });
+    const off = (note, t) => ({ type: 'off', note, t });
+    const plain = [on('A4', 0), off('A4', 200), on('B4', 300), off('B4', 500)];
+    const hit = [on('A4', 0, 1), off('A4', 200), on('B4', 300, 30 / 127), off('B4', 500), on('C4', 600), off('C4', 700)];
+    const back = unpack(pack(hit, 800, SET)).events.filter(e => e.type === 'on');
+    expect(back.map(e => e.vel)).toEqual([1, 30 / 127, undefined]);      // a note without a velocity stays without
+    expect(unpack(pack(plain, 600, SET)).events.every(e => e.vel === undefined)).toBe(true);
+    expect(pack(hit.slice(0, 4), 600, SET).length - pack(plain, 600, SET).length).toBe(2);   // one byte a note
+    // the softest and loudest survive: never 0 (which means "none"), never over 127
+    const edge = unpack(pack([on('A4', 0, 0.001), off('A4', 100), on('B4', 200, 5), off('B4', 300)], 400, SET)).events.filter(e => e.type === 'on');
+    expect(edge.map(e => Math.round(e.vel * 127))).toEqual([1, 127]);
   });
 
   it('a recording too long for a link keeps its last part, starting as it stood', async () => {

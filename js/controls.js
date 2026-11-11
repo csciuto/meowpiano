@@ -443,7 +443,7 @@ export function initTransport(onRefresh, onStatus) {
     for (const e of at.sounding) {
       const n = noteMap[e.note];
       if (!n) continue;
-      pbNoteOn(n, e.freq, true, e.ls, e.le, e.dec, onRefresh);
+      pbNoteOn(n, e.freq, true, e.ls, e.le, e.dec, onRefresh, e.vel);
       if (e.up) pbNoteOff(n);
     }
     for (const ev of evs) {
@@ -454,7 +454,7 @@ export function initTransport(onRefresh, onStatus) {
         if (ev.type === 'pitch') { state.pitchBend = ev.bend; renderWheel(); return; }   // the wheel moves as recorded
         const n = noteMap[ev.note];
         if (!n) return;
-        if (ev.type === 'on')  pbNoteOn(n, ev.freq, true, ev.ls, ev.le, ev.dec, onRefresh);
+        if (ev.type === 'on')  pbNoteOn(n, ev.freq, true, ev.ls, ev.le, ev.dec, onRefresh, ev.vel);
         if (ev.type === 'off') pbNoteOff(n);
         onRefresh();
       }, ev.t - from));

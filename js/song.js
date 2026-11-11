@@ -3,17 +3,20 @@
  * address after `#song=`. Pure: no DOM, no audio.
  *
  * Recorded events (state.recEvents), times in ms from the start of the take:
- *   {type:'on', note, freq, ls, le, t}   key down: note name, frequency (octave included), loop points
+ *   {type:'on', note, freq, ls, le, t, vel?}   key down: note name, frequency (octave included), loop points,
+ *                                        and how hard it was hit (0..1) when the key could tell (MIDI)
  *   {type:'off', note, t}                key up
  *   {type:'sustain_on'|'sustain_off', t} pedal
  *   {type:'pitch', bend, t}              wheel (or arrow keys) moved to `bend` semitones
  *   {type:'wheel_release', t}            wheel let go: it springs back to 0 by itself (springSteps)
  *
- * Packed format, version 3 (then deflate-raw, then base64url):
+ * Packed format, version 4 (then deflate-raw, then base64url):
  *   version, header (loop in/out ms, crossfade ms, grain ms, scatter %, tuning: A4 in tenths of Hz, the song's
  *   name as length + UTF-8; version 1 had neither, read as 440 and no name; version 2 had no name), then one record per note, pedal
  *   change, wheel point, wheel release or loop-point change, in time order. Times are 5 ms ticks since the
- *   previous record; how long a key is held is in 10 ms steps. Columns are stored apart (ops, times, keys, lengths, bends, loops) so they compress well.
+ *   previous record; how long a key is held is in 10 ms steps. Columns are stored apart (ops, times, keys, lengths, bends, loops, velocities) so they compress well.
+ *   Velocities (version 4) are one byte a note, 1..127, 0 for a note without one; the column is empty when no note has one,
+ *   so a song played on the computer keys is no longer than before.
  *   A note is one record: start, key (note + octave), and how long the key was held.
  *   Wheel drags keep only the points needed to stay within 0.04 semitone (4 cents, below what ears tell apart); playback ramps between them.
  */
@@ -22,7 +25,7 @@ import { NOTES, BASE_FREQS } from './notes.js';
 export const TICK = 5;            // ms per time step (when things start)
 export const LEN_TICK = 10;       // ms per step of how long a key is held: the release fades over 20 ms anyway
 export const LINK_CAP = 8000;     // longest whole link we make: some chat apps and servers stop around 8 KB
-const VERSION = 3;
+const VERSION = 4;
 const OP = { NOTE: 0, PED_ON: 1, PED_OFF: 2, BEND: 3, RELEASE: 4, LOOP: 5 };
 const BEND_TOL = 4;               // hundredths of a semitone
 const SPRING_STEPS = 20, SPRING_MS = 16;   // the wheel's spring-back (controls.js)
@@ -112,7 +115,7 @@ export function pack(events, end, settings) {
       if (nls !== ls || nle !== le) { ls = nls; le = nle; recs.push({ tick: tk(ev.t), op: OP.LOOP, ls, le }); }
       closeNote(ev.note, ev.t);
       const oct = Math.max(-2, Math.min(2, Math.round(Math.log2(ev.freq / BASE_FREQS[ev.note]))));
-      const r = { tick: tk(ev.t), t: ev.t, op: OP.NOTE, key: i + NOTES.length * (oct + 2), dur: 0 };
+      const r = { tick: tk(ev.t), t: ev.t, op: OP.NOTE, key: i + NOTES.length * (oct + 2), dur: 0, vel: ev.vel };
       recs.push(r); open[ev.note] = r;
     } else if (ev.type === 'off') closeNote(ev.note, ev.t);
     else if (ev.type === 'sustain_on') recs.push({ tick: tk(ev.t), op: OP.PED_ON });
@@ -123,6 +126,8 @@ export function pack(events, end, settings) {
   recs.sort((a, b) => a.tick - b.tick);   // stable: same-tick records keep their order
 
   const ops = [], times = [], keys = [], durs = [], bends = [], loops = [];
+  const anyVel = recs.some(r => r.op === OP.NOTE && r.vel !== undefined);
+  const vels = anyVel ? recs.filter(r => r.op === OP.NOTE).map(r => (r.vel === undefined ? 0 : Math.max(1, Math.min(127, Math.round(r.vel * 127))))) : [];
   let prev = 0, lastC = 0;
   for (const r of recs) {
     ops.push(r.op); putVar(times, r.tick - prev); prev = r.tick;
@@ -138,8 +143,8 @@ export function pack(events, end, settings) {
   const name = new TextEncoder().encode((settings.title || '').slice(0, 80));
   putVar(head, name.length); head.push(...name);
   putVar(head, tk(end));
-  for (const col of [ops, times, keys, durs, bends, loops]) putVar(head, col.length);
-  return Uint8Array.from([...head, ...ops, ...times, ...keys, ...durs, ...bends, ...loops]);
+  for (const col of [ops, times, keys, durs, bends, loops, vels]) putVar(head, col.length);
+  return Uint8Array.from([...head, ...ops, ...times, ...keys, ...durs, ...bends, ...loops, ...vels]);
 }
 
 /** Unpack to {events, end, settings}; events in the recorded form, time order. */
@@ -155,12 +160,13 @@ export function unpack(bytes) {
   settings.tuning = version >= 2 ? h.var() / 10 : 440;
   if (version >= 3) { const n = h.var(); const t = new TextDecoder().decode(h.take(n)); if (t) settings.title = t; }
   const end = h.var() * TICK;
-  const lens = [0, 0, 0, 0, 0, 0].map(() => h.var());
+  const lens = Array.from({ length: version >= 4 ? 7 : 6 }, () => h.var());
   let at = h.pos;
   const cols = lens.map(n => { const s = at; at += n; return s; });
   if (at > bytes.length) throw new Error('song is cut short');
   const ops = bytes.subarray(cols[0], cols[0] + lens[0]), keys = bytes.subarray(cols[2], cols[2] + lens[2]);
   const times = reader(bytes, cols[1]), durs = reader(bytes, cols[3]), bends = reader(bytes, cols[4]), loops = reader(bytes, cols[5]);
+  const vels = lens[6] ? bytes.subarray(cols[6], cols[6] + lens[6]) : null;
 
   const events = [];
   let tick = 0, ki = 0, c = 0, ls = settings.loopStart, le = settings.loopEnd;
@@ -168,11 +174,12 @@ export function unpack(bytes) {
     tick += times.var();
     const t = tick * TICK;
     if (op === OP.NOTE) {
+      const v = vels ? vels[ki] : 0;
       const key = keys[ki++], i = key % NOTES.length, oct = Math.floor(key / NOTES.length) - 2;
       const n = NOTES[i], dur = durs.var() * LEN_TICK;
       if (!n) continue;
       const note = n.note;
-      events.push({ type: 'on', note, freq: BASE_FREQS[note] * Math.pow(2, oct), ls, le, t });
+      events.push({ type: 'on', note, freq: BASE_FREQS[note] * Math.pow(2, oct), ls, le, t, ...(v && { vel: v / 127 }) });
       events.push({ type: 'off', note, t: t + dur });
     } else if (op === OP.PED_ON) events.push({ type: 'sustain_on', t });
     else if (op === OP.PED_OFF) events.push({ type: 'sustain_off', t });

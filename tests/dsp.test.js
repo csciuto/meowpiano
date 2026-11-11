@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { applyCrossfadeAtSeam, findStableWindow, nearestZeroCrossing } from '../js/dsp.js';
+import { GRAIN_CURVE } from '../js/audio.js';
 
 describe('applyCrossfadeAtSeam', () => {
   it('does nothing when crossFrames is 0', () => {
@@ -131,5 +132,18 @@ describe('nearestZeroCrossing', () => {
     // from frame 3: fwd r=1 → idx 4, data[3]*data[4]=-0.2*-0.1>0 no
     //               bwd r=1 → idx 2, data[1]*data[2]=0.1*-0.1<0  yes → 2
     expect(nearestZeroCrossing(data, 3, 5)).toBe(2);
+  });
+});
+
+
+describe('grain envelope', () => {
+  it('keeps power steady at 50% overlap (no beat between random grains)', () => {
+    const n = GRAIN_CURVE.length - 1, half = n / 2;
+    const p = i => GRAIN_CURVE[i] ** 2 + GRAIN_CURVE[i + half] ** 2;
+    for (let i = 0; i <= half; i++) expect(p(i)).toBeCloseTo(2 / 3, 6);
+  });
+  it('starts and ends silent', () => {
+    expect(GRAIN_CURVE[0]).toBe(0);
+    expect(Math.abs(GRAIN_CURVE.at(-1))).toBeLessThan(1e-9);
   });
 });

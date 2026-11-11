@@ -36,6 +36,13 @@ export function boot() {
 
 // ── Granular engine ───────────────────────────────────────────────────
 
+// Grain envelope: a half sine. Grains start at random spots, so neighbors don't
+// line up and their power (not amplitude) adds; at the default 50% overlap
+// sin² + cos² = 1 keeps the level steady. A triangle dipped between grains and
+// made a 20 Hz beat. √(2/3) matches the triangle's loudness.
+export const GRAIN_CURVE = Float32Array.from({ length: 65 },
+  (_, i) => Math.sin(Math.PI * i / 64) * Math.sqrt(2 / 3));
+
 function startGranular(buf, rateRef, ls, le) {
   const gainNode = actx.createGain();
   gainNode.gain.value = 0;
@@ -57,9 +64,7 @@ function startGranular(buf, rateRef, ls, le) {
       g.playbackRate.value = rateRef.value;  // read live so pitch bend takes effect
 
       const env = actx.createGain();
-      env.gain.setValueAtTime(0,        nextTime);
-      env.gain.linearRampToValueAtTime(1, nextTime + grainDur * 0.5);
-      env.gain.linearRampToValueAtTime(0, nextTime + grainDur);
+      env.gain.setValueCurveAtTime(GRAIN_CURVE, nextTime, grainDur);
 
       g.connect(env);
       env.connect(gainNode);

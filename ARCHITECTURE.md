@@ -74,8 +74,10 @@ A held note can't just loop the sample (it would sound like "meowowow"), so each
 
 1. **Attack**: the sample plays from the start and fades out at the loop-in point.
 2. **Sustain**: a granular cloud. Every few tens of milliseconds a short grain (20–200 ms, the GRAIN slider)
-   starts at a random spot between loop-in and loop-out, with a triangular envelope; grains overlap by the
-   SCATTER amount. A scheduler fills 300 ms ahead on a 100 ms `setTimeout` so timing doesn't depend on the
+   starts at a random spot between loop-in and loop-out, with a half-sine envelope; grains overlap by the
+   SCATTER amount. Random grains don't line up, so their power adds, not their amplitude: at the default 50%
+   overlap the sine keeps the level steady (sin² + cos² = 1), where a triangle dipped 20 times a second and
+   was heard as a beat. A scheduler fills 300 ms ahead on a 100 ms `setTimeout` so timing doesn't depend on the
    main thread.
 
 Key up (unless the pedal holds it) fades the cloud and plays the sample's tail from loop-out: the "w" at the end

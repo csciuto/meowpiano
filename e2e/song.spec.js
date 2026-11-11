@@ -143,7 +143,8 @@ test('help: linked from the piano, and the two Hear links load their songs', asy
   await expect(page.locator('h1')).toHaveText('How to play Meow Piano');
   for (const img of await page.locator('figure img').all()) {
     await img.scrollIntoViewIfNeeded();
-    await expect.poll(() => img.evaluate(el => el.complete && el.naturalWidth)).toBe(900);
+    // desktop clips are 900 wide; narrow screens get the phone clips, 618 wide
+    await expect.poll(() => img.evaluate(el => el.complete && el.naturalWidth)).toBe((page.viewportSize().width <= 600) ? 618 : 900);
   }
   await page.locator('a.hear', { hasText: 'Canon' }).click();
   await expect(page.locator('#status')).toHaveText('Canon in D · 1:51 · press PLAY');

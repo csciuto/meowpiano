@@ -7,7 +7,8 @@
     "screenshot": "UPDATE_PREVIEW=1 playwright test e2e/smoke.spec.js --project=desktop",
     "test:all": "npm test && npm run test:e2e",
     "help-clips": "node tools/help-clips.js",
-    "vendor": "curl -fsSL https://raw.githubusercontent.com/csciuto/midi-in/v$npm_package_vendored_midi_in/midi-in.js -o js/vendor/midi-in.js"
+    "vendor": "curl -fsSL https://raw.githubusercontent.com/csciuto/midi-in/v$npm_package_vendored_midi_in/midi-in.js -o js/vendor/midi-in.js",
+    "help-clips:phone": "node tools/help-clips.js --phone"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.10.2",

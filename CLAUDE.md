@@ -14,7 +14,8 @@ Commit and push freely once tests pass.
 
 ## Help page
 
-`help.html` with clips in `help/*.webp` (animated WebP, silent), recorded by `npm run help-clips [name…]`
+`help.html` with clips in `help/*.webp` and, for narrow screens, `help/phone/*.webp` (animated WebP, silent),
+recorded by `npm run help-clips [name…]` and `npm run help-clips:phone [name…]`: record both
 (`tools/help-clips.js`: Playwright drives the piano with a drawn cursor and key cap; sharp writes the WebP).
 Re-record a clip whenever the UI it shows changes. Its "Hear Canon in D" and "Hear Brahms' Lullaby" links are `songs/*.mid` as
 song links; unit tests check they still open. `node scripts/demo-links.js` rewrites them: run it if a demo file

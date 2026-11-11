@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Record the short looping clips on help.html as animated WebP.
 //
-//   node tools/help-clips.js            # all clips
+//   node tools/help-clips.js            # all clips, desktop size (help/*.webp)
 //   node tools/help-clips.js record     # just one
+//   node tools/help-clips.js --phone    # the same clips at phone size, by touch (help/phone/*.webp)
 //
 // Serves the repo locally, drives the piano with Playwright (a drawn cursor shows where the "user" points,
 // a key cap shows computer keys pressed), captures a frame per step and writes help/<name>.webp. Clips are
@@ -16,11 +17,15 @@ import { chromium } from '@playwright/test';
 import sharp from 'sharp';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = join(ROOT, 'help');
+// Phone clips show what a phone shows: the narrow layout, a fingertip for a pointer, and taps on the on-screen
+// keys and buttons where the desktop clips press computer keys (a phone has none).
+const PHONE = process.argv.includes('--phone');
+const OUT = join(ROOT, PHONE ? 'help/phone' : 'help');
 const PORT = 8097;
-const VIEW = { width: 1200, height: 860 };
-const CROP = { width: 1200, height: 640 };   // written at 900 × 480
-const SCALE = 0.75;
+const VIEW = PHONE ? { width: 412, height: 900 } : { width: 1200, height: 860 };
+const CROP = PHONE ? { width: 412, height: 600 } : { width: 1200, height: 640 };   // written at 618 × 900 or 900 × 480
+const SCALE = PHONE ? 1.5 : 0.75;
+const DPR = PHONE ? 2 : 1;
 
 // ── a tiny static server ──
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.ogg': 'audio/ogg', '.png': 'image/png', '.mid': 'audio/midi', '.json': 'application/json' };
@@ -31,7 +36,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 // the pointer, and a key cap for computer keys, drawn into the page so screenshots show them
-const OVERLAY_JS = () => {
+const OVERLAY_JS = (phone) => {
   const c = document.createElement('div');
   c.innerHTML = '<svg width="22" height="22" viewBox="0 0 22 22"><path d="M3 2 L3 18 L7.5 14 L10.5 20.5 L13 19.4 L10 13 L16 13 Z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>';
   Object.assign(c.style, { position: 'fixed', left: 0, top: 0, zIndex: 2147483647, pointerEvents: 'none', transform: 'translate(-100px,-100px)' });
@@ -40,6 +45,10 @@ const OVERLAY_JS = () => {
   const cap = document.createElement('div');
   Object.assign(cap.style, { position: 'fixed', right: '24px', bottom: '24px', zIndex: 2147483647, pointerEvents: 'none', display: 'none',
     font: '12px "Press Start 2P", monospace', color: '#080B14', background: '#FFE066', borderRadius: '8px', padding: '10px 14px', boxShadow: '0 0 16px rgba(255,224,102,.8)' });
+  if (phone) {   // a fingertip, and no key cap
+    c.innerHTML = '<div style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.55);border:2px solid #fff;box-shadow:0 0 8px rgba(0,0,0,.5);transform:translate(-10px,-11px)"></div>';
+    cap.style.visibility = 'hidden';
+  }
   document.body.append(c, ring, cap);
   addEventListener('mousemove', e => { c.style.transform = `translate(${e.clientX - 3}px, ${e.clientY - 2}px)`; }, true);
   addEventListener('mousedown', e => { ring.style.transform = `translate(${e.clientX - 14}px, ${e.clientY - 14}px)`; ring.style.opacity = 1; }, true);
@@ -81,9 +90,33 @@ class Clip {
     await this.page.mouse.down(); await this.snap(90);
     await this.page.mouse.up(); await this.wait(settle); await this.snap(350);
   }
-  async key(k, holdMs = 260) {   // a computer key, held a moment
+  // the on-screen piano key that a computer key plays
+  pianoKey(k) { return this.page.locator('.key').filter({ has: this.page.locator('.key-label', { hasText: new RegExp('^' + k.toUpperCase() + '$') }) }).first(); }
+  async key(k, holdMs = 260) {   // a computer key, held a moment; on a phone, a tap on that piano key
+    if (PHONE) {
+      if (!/^[a-z;']$/i.test(k)) return;            // octave digits and the like: no such keys on a phone
+      const key = this.pianoKey(k);
+      await key.scrollIntoViewIfNeeded();
+      await this.to(key, 6, 0.5, 0.8);
+      await this.page.mouse.down(); await this.snap(holdMs);
+      await this.page.mouse.up(); await this.snap(90);
+      return;
+    }
     await this.page.keyboard.down(k); await this.snap(holdMs);
     await this.page.keyboard.up(k); await this.snap(90);
+  }
+  // the sustain pedal: Space on a computer, the SUSTAIN button on a phone
+  async pedal(down) {
+    if (PHONE) { await this.click(this.page.locator('#btnSustain'), { steps: 8, settle: 150 }); return; }
+    if (down) await this.page.keyboard.down(' '); else await this.page.keyboard.up(' ');
+    await this.snap(200);
+  }
+  // several keys at once: held together on a computer; on a phone, tapped in turn (the pedal holds them)
+  async chord(keys) {
+    if (PHONE) { for (const k of keys) await this.key(k, 140); return; }
+    for (const k of keys) { await this.page.keyboard.down(k); await this.snap(120); }
+    await this.hold(400);
+    for (const k of keys) { await this.page.keyboard.up(k); await this.snap(80); }
   }
   async type(text) { for (const ch of text) { await this.page.keyboard.type(ch); await this.wait(40); await this.snap(100); } }
   async drag(x0, y0, x1, y1, steps = 16) {
@@ -106,7 +139,7 @@ class Clip {
 async function openApp(page) {
   await page.goto(`http://localhost:${PORT}/`);
   await page.waitForFunction(() => /click a key/.test(document.getElementById('status').textContent));
-  await page.evaluate(OVERLAY_JS);
+  await page.evaluate(OVERLAY_JS, PHONE);
   await page.waitForTimeout(300);
 }
 const canon = page => page.waitForEvent('filechooser').then(fc => fc.setFiles(join(ROOT, 'songs/canon-in-d.mid')));
@@ -125,16 +158,19 @@ const CLIPS = {
     await c.hold(400);
     await c.key('a'); await c.key('d'); await c.key('g'); await c.key('k', 600);
     // a chord held with the pedal
-    await p.keyboard.down(' '); await c.snap(200);
-    for (const k of ['a', 'd', 'g']) { await p.keyboard.down(k); await c.snap(120); }
-    await c.hold(400);
-    for (const k of ['a', 'd', 'g']) { await p.keyboard.up(k); await c.snap(80); }
+    await c.pedal(true);
+    await c.chord(['a', 'd', 'g']);
     await c.hold(600);
+    if (PHONE) {   // the wheel and the octave buttons live in the side panel on a phone: the sound clip opens it
+      await c.pedal(false);
+      await c.hold(900);
+      return;
+    }
     // bend it with the wheel, let go: it springs back
     const t = await $(p, '#pitchThumb').boundingBox();
     await c.drag(t.x + t.width / 2, t.y + t.height / 2, t.x + t.width / 2, t.y - 60, 14);
     await c.run(500, 80);
-    await p.keyboard.up(' '); await c.snap(300);
+    await c.pedal(false);
     // octave up with 4, and the range label moves
     await c.key('4', 300); await c.key('a', 500);
     await c.key('3', 300);
@@ -184,7 +220,7 @@ const CLIPS = {
     await openApp(p); await c.frame(50); await c.hold(500);
     await c.click($(p, '#btnRecord'), { steps: 12, settle: 200 });
     for (const k of ['a', 'd', 'g', 'k', 'g', 'd']) await c.key(k, 220);
-    await p.keyboard.down(' '); await c.key('a', 200); await c.key('h', 200); await c.key('k', 300); await p.keyboard.up(' ');
+    await c.pedal(true); await c.key('a', 200); await c.key('h', 200); await c.key('k', 300); await c.pedal(false);
     await c.run(1100, 160);
     await c.click($(p, '#btnStop'), { steps: 12, settle: 400 });
     await c.hold(900);
@@ -224,13 +260,14 @@ const CLIPS = {
   },
 };
 
-const names = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(CLIPS);
+const asked = process.argv.slice(2).filter(a => !a.startsWith('--'));
+const names = asked.length ? asked : Object.keys(CLIPS);
 await new Promise(r => server.listen(PORT, r));
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 try {
   for (const name of names) {
     if (!CLIPS[name]) { console.log('no clip', name); continue; }
-    const ctx = await browser.newContext({ viewport: VIEW, deviceScaleFactor: 1, acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] });
+    const ctx = await browser.newContext({ viewport: VIEW, deviceScaleFactor: DPR, isMobile: PHONE, hasTouch: PHONE, acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] });
     const page = await ctx.newPage();
     const c = new Clip(page);
     await CLIPS[name](c);

@@ -13,6 +13,7 @@ import {
 import { noteMap } from './notes.js';
 import { playable, songText, readSong, fitSong, stateAt, fmtTime, LINK_CAP } from './song.js';
 import { fromMidi, toMidi } from './midi.js';
+import { toText, fromText, isSongText } from './songtext.js';
 
 // ── Loop waveform canvas ──────────────────────────────────────────────
 
@@ -379,7 +380,7 @@ export function initTransport(onRefresh, onStatus) {
   const $ = id => document.getElementById(id);
   const btnRecord = $('btnRecord'), btnPlay = $('btnPlay'), btnLoop = $('btnLoop'), btnStop = $('btnStop');
   const btnBack = $('btnBack'), btnFwd = $('btnFwd'), btnClear = $('btnClear');
-  const btnOpen = $('btnOpen'), btnSave = $('btnSave'), btnShare = $('btnShare');
+  const btnOpen = $('btnOpen'), btnSave = $('btnSave'), btnText = $('btnText'), btnShare = $('btnShare');
   const seek = $('seek'), songName = $('songName');
   _status = onStatus;
 
@@ -394,7 +395,7 @@ export function initTransport(onRefresh, onStatus) {
     total = Math.max(end || 0, evs.reduce((m, e) => Math.max(m, e.t), 0));
     pos = 0;
     const has = events.some(e => e.type === 'on');
-    for (const b of [btnPlay, btnLoop, btnBack, btnFwd, btnSave, btnShare]) b.disabled = !has;
+    for (const b of [btnPlay, btnLoop, btnBack, btnFwd, btnSave, btnText, btnShare]) b.disabled = !has;
     seek.hidden = !has;
     songName.hidden = !has;
     songName.value = take.title || '';
@@ -551,18 +552,28 @@ export function initTransport(onRefresh, onStatus) {
   });
 
   // ── files ──
-  btnSave.addEventListener('click', () => {
-    if (!state.recEvents.length) return;
-    const bytes = toMidi(state.recEvents, state.recEnd, { ...settingsNow(), title: take.title || undefined });
+  // SAVE writes a MIDI file, for other music programs; TEXT writes the same song as lines a person can read and edit
+  function download(blob, ext) {
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([bytes], { type: 'audio/midi' }));
+    a.href = URL.createObjectURL(blob);
     const safe = (take.title || '').replace(/[\\/:*?"<>|]+/g, '').trim();
     a.download = (safe ? safe + (take.kind === 'file' ? ' (meow)' : '')
-      : 'meowpiano-' + new Date().toISOString().slice(0, 16).replace(/[-:]/g, '').replace('T', '-')) + '.mid';
+      : 'meowpiano-' + new Date().toISOString().slice(0, 16).replace(/[-:]/g, '').replace('T', '-')) + ext;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
     onStatus('saved ' + a.download);
+  }
+  btnSave.addEventListener('click', () => {
+    if (!state.recEvents.length) return;
+    const bytes = toMidi(state.recEvents, state.recEnd, { ...settingsNow(), title: take.title || undefined });
+    download(new Blob([bytes], { type: 'audio/midi' }), '.mid');
     popup('saveToast', 'MIDI SAVED!', 2600);
+  });
+  btnText.addEventListener('click', () => {
+    if (!state.recEvents.length) return;
+    const text = toText(state.recEvents, state.recEnd, { ...settingsNow(), title: take.title || undefined });
+    download(new Blob([text], { type: 'text/plain' }), '.txt');
+    popup('textToast', 'TEXT SAVED!', 2600);
   });
 
   // OPEN: a MIDI file becomes the take; with more than one instrument, choose which to play
@@ -576,7 +587,12 @@ export function initTransport(onRefresh, onStatus) {
     if (!f) return;
     let file;
     const bytes = new Uint8Array(await f.arrayBuffer());
-    try { file = fromMidi(bytes); } catch (_) {
+    const asText = /\.txt$/i.test(f.name) || isSongText(new TextDecoder().decode(bytes.subarray(0, 64)));
+    if (asText) {
+      // a song as text (TEXT writes these; they can be written by hand too): a bad line is named
+      try { file = fromText(new TextDecoder().decode(bytes)); } catch (e) { onStatus("couldn't read that song: " + e.message); return; }
+      if (!file.parts.length) { onStatus('no notes in that song'); return; }
+    } else try { file = fromMidi(bytes); } catch (_) {
       // a web page saved as .mid (GitHub's file view, say) is the usual mix-up
       const page = /^\s*<(!doctype|html)/i.test(new TextDecoder().decode(bytes.subarray(0, 64)));
       onStatus(page ? 'that file is a saved web page, not MIDI' : "couldn't read that MIDI file");
@@ -585,7 +601,7 @@ export function initTransport(onRefresh, onStatus) {
     if (!file.parts.length) { onStatus('no notes in that MIDI file'); return; }
     halt();
     clearTake();
-    midiFile = file; fileName = f.name.replace(/\.midi?$/i, '');
+    midiFile = file; fileName = f.name.replace(/\.(midi?|txt)$/i, '');
     if (file.settings) applySettings({ ...settingsNow(), ...file.settings });
     for (const p of file.parts) {
       const label = document.createElement('label');

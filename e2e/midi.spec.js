@@ -235,3 +235,36 @@ test('how hard a MIDI key is hit sets how loud it is, live, recorded and played 
   });
   expect(link).toEqual([127, 40, null]);
 });
+
+test('TEXT saves the song as readable lines, and OPEN reads them back @desktop', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#btnText')).toBeDisabled();
+  await page.keyboard.press('Enter');                          // record
+  for (const k of ['a', 'd', 'g']) { await page.keyboard.down(k); await page.waitForTimeout(120); await page.keyboard.up(k); await page.waitForTimeout(60); }
+  await page.keyboard.press('Enter');                          // stop
+  await page.locator('#songName').fill('Three notes');
+  await page.locator('#songName').press('Enter');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#btnText').click()]);
+  expect(download.suggestedFilename()).toBe('Three notes.txt');
+  await expect(page.locator('#textToast')).toHaveText('TEXT SAVED!');
+  const text = readFileSync(await download.path(), 'utf8');
+  const lines = text.split('\n');
+  expect(lines.slice(0, 2)).toEqual(['# Meow Piano song', 'title Three notes']);
+  expect(lines.filter(l => /^\d+\.\d{3} [A-G]#?\d \d+\.\d{3}$/.test(l)).map(l => l.split(' ')[1])).toEqual(['C4', 'E4', 'G4']);
+  // open it again: same song, same name
+  await page.locator('#btnClear').click();
+  await page.setInputFiles('#midiFile', { name: 'Three notes.txt', mimeType: 'text/plain', buffer: Buffer.from(text) });
+  await expect(page.locator('#status')).toHaveText(/^Three notes · 0:0\d · 3 notes · press PLAY/);
+  await expect(page.locator('#songName')).toHaveValue('Three notes');
+});
+
+test('a song written by hand opens; a line that is wrong is named @desktop', async ({ page }) => {
+  await page.goto('/');
+  const hand = '# Meow Piano song\ntitle By hand\n0 C4+E4+G4 1.5 v80\n1.5 pedal down\n2 C5 1\n3 pedal up\n';
+  await page.setInputFiles('#midiFile', { name: 'tune.txt', mimeType: 'text/plain', buffer: Buffer.from(hand) });
+  await expect(page.locator('#status')).toHaveText(/^By hand · 0:03 · 4 notes · press PLAY/);
+  await page.setInputFiles('#midiFile', { name: 'oops.txt', mimeType: 'text/plain', buffer: Buffer.from('0 C4 1\n1 H9 1\n') });
+  await expect(page.locator('#status')).toHaveText('couldn\'t read that song: line 2: "H9" is not a note (try C4, F#3 or Bb5)');
+  // the song that was open is still there
+  await expect(page.locator('#songName')).toHaveValue('By hand');
+});

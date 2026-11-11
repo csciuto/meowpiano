@@ -32,13 +32,14 @@ js/
   controls.js     panels and transport: octave, loop/grain/tuning, pitch wheel, REC/PLAY/seek/OPEN/SAVE/SHARE
   song.js         the song-link format; playback helpers (spring-back, state at a time, cutting to fit)
   midi.js         .mid read/write; turning a file's instruments into piano events
+  songtext.js     songs as plain text, written and read (TEXT, OPEN): one line per note, pedal change or wheel move
   vendor/midi-in.js   live MIDI keyboard input (shared module; `npm run vendor` refreshes it)
   dsp.js          loop-window search (tested; not used at runtime)
 sounds/           meow.ogg (source) and notes/*.ogg (one pre-pitched sample per key)
 songs/            canon-in-d.mid, brahms-lullaby.mid (tests and demos; made by scripts/make-*.js)
 scripts/          process_samples.py (makes sounds/notes), make-canon.js, make-lullaby.js,
                   demo-links.js (rewrites help.html's Hear links from songs/)
-tools/            help-clips.js (records help/*.webp)
+tools/            help-clips.js (records help/*.webp, and help/phone/*.webp with --phone)
 tests/, e2e/      unit tests (Vitest) and browser tests (Playwright, desktop + phone, axe)
 ```
 
@@ -134,4 +135,5 @@ link versions still open (`unpack` reads versions 1–3).
 - The computer keys and the mouse play at one loudness; only MIDI carries velocity.
 - The wheel bends ±2 semitones; MIDI files with wider bend ranges are squeezed into that.
 - Laptop keyboards register only a few keys at once (hardware), so big chords need the pedal or a MIDI keyboard.
-- Help clips are silent (animated WebP has no audio).
+- Help clips are silent (animated WebP has no audio). There are two sets, desktop and phone; both need
+  re-recording when the controls they show change.

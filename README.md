@@ -144,6 +144,10 @@ drum sounds rather than pitches. The checked instruments play as one meow piano:
 piano's reach (C2–C8), and each note is as loud as its velocity says. A MIDI keyboard works the same way:
 harder is louder. The computer keys and the mouse can't tell, so they play at full level.
 
+**TEXT** writes the song as plain text, one line per note (`0.500 C4 0.480 v90`), pedal change or wheel move, and
+**OPEN** reads those files too, so a song can be read, edited or written by hand; the format is in
+`js/songtext.js`.
+
 **SAVE** writes a one-track `.mid` file: notes with their velocities, the pedal (CC64) and
 the pitch wheel (pitch bend, ±2 semitones). The loop points, grain settings and tuning go in as text events
 that start `meowpiano`, so a file saved here opens with the same sound; other programs ignore them.

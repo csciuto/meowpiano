@@ -1,10 +1,11 @@
-import { NOTES, BASE_FREQS } from './notes.js';
+import { SAMPLES, sampleFor } from './notes.js';
 import { state } from './state.js';
 
 export let actx       = null;
 export let analyser   = null;
 export let masterGain = null;
-export const noteBufs = {};  // note name → AudioBuffer
+export const noteBufs = {};  // sample name (C2 … C8) → AudioBuffer
+const bufFor = freq => noteBufs[sampleFor(freq).note];
 
 // "C#4" → "Cs4"  (# is not safe in a URL path segment)
 function toFilename(note) { return note.replace('#', 's'); }
@@ -25,7 +26,7 @@ export function boot() {
 
   // the page's version goes on each sample's address, so a reload after an update never plays old sounds
   const version = document.querySelector('[title="Version"]')?.textContent || 'dev';
-  return Promise.all(NOTES.map(n =>
+  return Promise.all(SAMPLES.map(n =>
     fetch(`sounds/notes/${toFilename(n.note)}.ogg?v=${version}`)
       .then(r => r.arrayBuffer())
       .then(ab => actx.decodeAudioData(ab))
@@ -101,12 +102,13 @@ export function createVoice(noteName, freq, useSustain, ls, le, vel) {
   out.gain.value = velocityGain(vel);
   out.connect(masterGain);
   const bend = pitchMult();
-  const rate = (freq / BASE_FREQS[noteName]) * bend;
+  const sample = sampleFor(freq), buf = noteBufs[sample.note], base = sample.freq;
+  const rate = (freq / base) * bend;
   const t0   = actx.currentTime;
   const xEnd = t0 + ls + state.crossfade;
 
   const src = actx.createBufferSource();
-  src.buffer = noteBufs[noteName];
+  src.buffer = buf;
   src.playbackRate.value = rate;
   src.loop = false;
 
@@ -121,12 +123,12 @@ export function createVoice(noteName, freq, useSustain, ls, le, vel) {
 
     // EO: granular fades in as attack fades out; holds until released
     const rateRef  = { value: rate };
-    const granular = startGranular(noteBufs[noteName], rateRef, ls, le, out);
+    const granular = startGranular(buf, rateRef, ls, le, out);
     granular.gainNode.gain.setValueAtTime(0, t0 + ls);
     granular.gainNode.gain.linearRampToValueAtTime(1.0, xEnd);
 
     src.start();
-    return { src, granular, freq, noteName, gain: granular.gainNode, attackGain, t0, ls, out };
+    return { src, granular, freq, noteName, buf, base, gain: granular.gainNode, attackGain, t0, ls, out };
   } else {
     // No sustain: recording plays once in full
     const gain = actx.createGain();
@@ -134,7 +136,7 @@ export function createVoice(noteName, freq, useSustain, ls, le, vel) {
     src.connect(gain);
     gain.connect(out);
     src.start();
-    return { src, gain, granular: null, out };
+    return { src, gain, granular: null, freq, buf, base, out };
   }
 }
 
@@ -175,8 +177,8 @@ function cutVoice(v, noteName, voices = state.liveVoices) {
 
   // Play W tail from loopEnd
   const tail = actx.createBufferSource();
-  tail.buffer = noteBufs[noteName];
-  tail.playbackRate.value = (v.freq / BASE_FREQS[v.noteName]) * pitchMult();
+  tail.buffer = v.buf;
+  tail.playbackRate.value = (v.freq / v.base) * pitchMult();
   tail.connect(v.out);
   tail.start(0, state.loopEnd);
   if (v.onEnd) tail.onended = v.onEnd;
@@ -185,7 +187,7 @@ function cutVoice(v, noteName, voices = state.liveVoices) {
 // ── Live voices (keyboard / pointer interaction) ──────────────────────
 
 export function noteOn(n, onEnd) {
-  if (!noteBufs[n.note] || !actx) return;
+  if (!actx || !bufFor(n.freq)) return;
   if (actx.state === 'suspended') actx.resume();
   if (state.liveVoices[n.note]) {
     const old = state.liveVoices[n.note];
@@ -227,14 +229,14 @@ export function applyPitchToLiveVoices(noteMap) {
   Object.entries(state.liveVoices).forEach(([noteName, v]) => {
     const n = noteMap[noteName];
     if (!n || !v) return;
-    const rate = ((v.fixed ? v.freq : n.freq) / BASE_FREQS[noteName]) * bend;
+    const rate = ((v.fixed ? v.freq : n.freq) / v.base) * bend;
     v.src.playbackRate.value = rate;
     if (v.granular) v.granular.rateRef.value = rate;
   });
   // Also update playback voices so recorded pitch events affect already-playing notes
   Object.entries(state.pbVoices).forEach(([noteName, v]) => {
     if (!v) return;
-    const rate = (v.freq / BASE_FREQS[noteName]) * bend;
+    const rate = (v.freq / v.base) * bend;
     v.src.playbackRate.value = rate;
     if (v.granular) v.granular.rateRef.value = rate;
   });
@@ -243,7 +245,7 @@ export function applyPitchToLiveVoices(noteMap) {
 // ── Playback voices (recorder playback) ──────────────────────────────
 
 export function pbNoteOn(n, freq, useSustain, ls, le, dec, onEnd, vel) {
-  if (!noteBufs[n.note] || !actx) return;
+  if (!actx || !bufFor(freq)) return;
   if (state.pbVoices[n.note]) {
     const old = state.pbVoices[n.note];
     try { old.src.stop(); } catch (_) {}

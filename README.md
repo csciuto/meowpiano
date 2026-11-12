@@ -35,7 +35,7 @@ The script:
 2. Detects the steady-state "EO" vowel region via RMS energy analysis.
 3. Snaps loop IN/OUT points to zero-crossings so the waveform joins without a click.
 4. Bakes a 15 ms crossfade at the loop boundary so the sustained region blends seamlessly.
-5. Generates 25 pitch-shifted OGGs (`sounds/notes/C4.ogg` … `C6.ogg`) using a phase-vocoder pitch shift, which preserves duration so every note plays for the same length of time regardless of pitch.
+5. Generates 73 pitch-shifted OGGs (`sounds/notes/C2.ogg` … `C8.ogg`, one per semitone across all five ranges) using a phase-vocoder pitch shift, which preserves duration so every note plays for the same length of time regardless of pitch. No range is the same samples sped up or slowed down.
 6. Prints the detected loop points.
 
 **After running**, update `js/state.js` with the printed `loopStart` and `loopEnd` values:
@@ -53,7 +53,7 @@ These tell the granular engine which region of the recording to loop from.
 
 1. Replace `sounds/meow.ogg` with your new mono OGG recording.
 2. Edit `SAMPLE_ROOT` in `scripts/process_samples.py` to the pitch of the held part of your recording in Hz (630 for the meow here, measured), so each key sounds at its name.
-3. Run the script. It re-pitches all 25 notes relative to that root.
+3. Run the script. It re-pitches all 73 notes relative to that root.
 4. Paste the printed `loopStart` / `loopEnd` into `js/state.js`.
 5. Optionally fine-tune IN/OUT in the browser using the settings panel.
 

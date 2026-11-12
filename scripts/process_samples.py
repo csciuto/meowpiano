@@ -55,15 +55,9 @@ HIGHPASS_HZ = 200.0  # below the meow (~600 Hz), above the rumble (8-80 Hz)
 
 SAMPLE_ROOT = 630.0  # Hz: the measured pitch of the held part of the meow (0.26-0.46 s), so keys sound at their names
 
-NOTES = [
-    ("C4",  261.63), ("Cs4", 277.18), ("D4",  293.66), ("Ds4", 311.13),
-    ("E4",  329.63), ("F4",  349.23), ("Fs4", 369.99), ("G4",  392.00),
-    ("Gs4", 415.30), ("A4",  440.00), ("As4", 466.16), ("B4",  493.88),
-    ("C5",  523.25), ("Cs5", 554.37), ("D5",  587.33), ("Ds5", 622.25),
-    ("E5",  659.25), ("F5",  698.46), ("Fs5", 739.99), ("G5",  783.99),
-    ("Gs5", 830.61), ("A5",  880.00), ("As5", 932.33), ("B5",  987.77),
-    ("C6", 1046.50),
-]
+# Every semitone from C2 to C8 (MIDI 36-108): the piano's five ranges, each note with its own file.
+_NAMES = ["C", "Cs", "D", "Ds", "E", "F", "Fs", "G", "Gs", "A", "As", "B"]
+NOTES = [(f"{_NAMES[m % 12]}{m // 12 - 1}", 440.0 * 2 ** ((m - 69) / 12)) for m in range(36, 109)]
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

@@ -89,3 +89,24 @@ describe('range labels', () => {
     expect(shownNote('C6', -2)).toBe('C4');
   });
 });
+
+describe('one sample per semitone, so no range is sped up or slowed down', () => {
+  it('every pitch the five ranges can play has its own file, at its own pitch', async () => {
+    const { SAMPLES, sampleFor } = await import('../js/notes.js');
+    const { existsSync } = await import('node:fs');
+    expect(SAMPLES).toHaveLength(73);
+    expect(SAMPLES[0].note).toBe('C2');
+    expect(SAMPLES[72].note).toBe('C8');
+    for (const s of SAMPLES) expect(existsSync(`sounds/notes/${s.note.replace('#', 's')}.ogg`), s.note).toBe(true);
+    for (const shift of [-2, -1, 0, 1, 2]) {
+      for (const n of NOTES) {
+        const freq = BASE_FREQS[n.note] * 2 ** shift;
+        const rate = freq / sampleFor(freq).freq;
+        expect(Math.abs(rate - 1), `${n.note} ${shift}`).toBeLessThan(0.001);
+      }
+    }
+    expect(sampleFor(440).note).toBe('A4');
+    expect(sampleFor(20).note).toBe('C2');      // out of range: the nearest end
+    expect(sampleFor(9000).note).toBe('C8');
+  });
+});

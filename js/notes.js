@@ -1,5 +1,3 @@
-export const SAMPLE_ROOT = 440.0;
-
 export const NOTES = [
   {note:"C4",  freq:261.63, key:"a",  type:"white", wi:0  },
   {note:"C#4", freq:277.18, key:"w",  type:"black", lwi:0 },
@@ -27,6 +25,18 @@ export const NOTES = [
   {note:"B5",  freq:987.77, key:"c",  type:"white", wi:13 },
   {note:"C6",  freq:1046.5, key:"v",  type:"white", wi:14 },
 ];
+
+// One recording per semitone, C2 to C8, all the same length. A pitch plays the nearest one, so no note
+// is sped up or slowed down by more than the pitch wheel and tuning ask for.
+const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+export const SAMPLES = Array.from({ length: 73 }, (_, i) => {
+  const m = 36 + i;
+  return { note: NAMES[m % 12] + (Math.floor(m / 12) - 1), freq: 440 * 2 ** ((m - 69) / 12) };
+});
+export function sampleFor(freq) {
+  const i = Math.round(69 + 12 * Math.log2(freq / 440)) - 36;
+  return SAMPLES[Math.max(0, Math.min(SAMPLES.length - 1, i))];
+}
 
 // Canonical base frequencies — never mutated
 export const BASE_FREQS = Object.fromEntries(NOTES.map(n => [n.note, n.freq]));

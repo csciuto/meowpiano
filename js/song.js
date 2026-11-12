@@ -20,7 +20,7 @@
  *   A note is one record: start, key (note + octave), and how long the key was held.
  *   Wheel drags keep only the points needed to stay within 0.04 semitone (4 cents, below what ears tell apart); playback ramps between them.
  */
-import { NOTES, BASE_FREQS } from './notes.js';
+import { NOTES, BASE_FREQS, SHIFTS } from './notes.js';
 
 export const TICK = 5;            // ms per time step (when things start)
 export const LEN_TICK = 10;       // ms per step of how long a key is held: the release fades over 20 ms anyway
@@ -114,7 +114,7 @@ export function pack(events, end, settings) {
       const nls = Math.round(ev.ls * 1000), nle = Math.round(ev.le * 1000);
       if (nls !== ls || nle !== le) { ls = nls; le = nle; recs.push({ tick: tk(ev.t), op: OP.LOOP, ls, le }); }
       closeNote(ev.note, ev.t);
-      const oct = Math.max(-2, Math.min(2, Math.round(Math.log2(ev.freq / BASE_FREQS[ev.note]))));
+      const oct = Math.max(-2, Math.min(SHIFTS[SHIFTS.length - 1], Math.round(Math.log2(ev.freq / BASE_FREQS[ev.note]))));
       const r = { tick: tk(ev.t), t: ev.t, op: OP.NOTE, key: i + NOTES.length * (oct + 2), dur: 0, vel: ev.vel };
       recs.push(r); open[ev.note] = r;
     } else if (ev.type === 'off') closeNote(ev.note, ev.t);
@@ -175,7 +175,7 @@ export function unpack(bytes) {
     const t = tick * TICK;
     if (op === OP.NOTE) {
       const v = vels ? vels[ki] : 0;
-      const key = keys[ki++], i = key % NOTES.length, oct = Math.floor(key / NOTES.length) - 2;
+      const key = keys[ki++], i = key % NOTES.length, oct = Math.min(SHIFTS[SHIFTS.length - 1], Math.floor(key / NOTES.length) - 2);   // old links' top range plays an octave down
       const n = NOTES[i], dur = durs.var() * LEN_TICK;
       if (!n) continue;
       const note = n.note;

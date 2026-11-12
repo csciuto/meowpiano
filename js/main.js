@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { NOTES, keyMap, noteMap, BASE_FREQS } from './notes.js';
+import { NOTES, keyMap, noteMap, BASE_FREQS, TOP_MIDI } from './notes.js';
 import { initMidiIn } from './vendor/midi-in.js';
 import { keyFor } from './midi.js';
 import { boot, noteOn, noteOff, analyser, soundOn, wake } from './audio.js';
@@ -92,6 +92,7 @@ function off(n) {
 const midiHeld = {};   // MIDI note → the key playing it
 const midiIn = initMidiIn(document.getElementById('btnMidiIn'), {
   noteOn(m, vel) {
+    if (m > TOP_MIDI) return;   // above C7: no meow up there
     if (midiHeld[m]) off(midiHeld[m]);
     const k = keyFor(m, new Set(Object.keys(state.liveVoices)));
     const n = { ...noteMap[k.note], freq: BASE_FREQS[k.note] * Math.pow(2, k.oct), fixed: true, vel };
@@ -115,7 +116,7 @@ for (const ev of ['pointerdown', 'keydown']) document.addEventListener(ev, wake)
 
 // ── Keyboard shortcuts ────────────────────────────────────────────────
 
-const OCTAVE_KEYS = { 1: -2, 2: -1, 3: 0, 4: 1, 5: 2 };
+const OCTAVE_KEYS = { 1: -2, 2: -1, 3: 0, 4: 1 };
 
 document.addEventListener('keydown', e => {
   if (e.target.matches && e.target.matches('input[type="text"]')) {   // typing a name: no shortcuts
@@ -143,7 +144,7 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     return;
   }
-  if (OCTAVE_KEYS[e.key] !== undefined && !e.metaKey && !e.ctrlKey && !e.altKey) {   // 1–5: octave −2 … +2
+  if (OCTAVE_KEYS[e.key] !== undefined && !e.metaKey && !e.ctrlKey && !e.altKey) {   // 1–4: octave −2 … +1
     setOctave(OCTAVE_KEYS[e.key]);
     return;
   }

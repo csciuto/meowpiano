@@ -35,7 +35,7 @@ The script:
 2. Detects the steady-state "EO" vowel region via RMS energy analysis.
 3. Snaps loop IN/OUT points to zero-crossings so the waveform joins without a click.
 4. Bakes a 15 ms crossfade at the loop boundary so the sustained region blends seamlessly.
-5. Generates 73 pitch-shifted OGGs (`sounds/notes/C2.ogg` … `C8.ogg`, one per semitone across all five ranges) using a phase-vocoder pitch shift, which preserves duration so every note plays for the same length of time regardless of pitch. No range is the same samples sped up or slowed down.
+5. Generates 61 pitch-shifted OGGs (`sounds/notes/C2.ogg` … `C7.ogg`, one per semitone across all four ranges) using a phase-vocoder pitch shift, which preserves duration so every note plays for the same length of time regardless of pitch. No range is the same samples sped up or slowed down.
 6. Prints the detected loop points.
 
 **After running**, update `js/state.js` with the printed `loopStart` and `loopEnd` values:
@@ -53,7 +53,7 @@ These tell the granular engine which region of the recording to loop from.
 
 1. Replace `sounds/meow.ogg` with your new mono OGG recording.
 2. Edit `SAMPLE_ROOT` in `scripts/process_samples.py` to the pitch of the held part of your recording in Hz (630 for the meow here, measured), so each key sounds at its name.
-3. Run the script. It re-pitches all 73 notes relative to that root.
+3. Run the script. It re-pitches all 61 notes relative to that root.
 4. Paste the printed `loopStart` / `loopEnd` into `js/state.js`.
 5. Optionally fine-tune IN/OUT in the browser using the settings panel.
 
@@ -89,7 +89,7 @@ Then open `http://localhost:8000` (or whichever port your server uses).
 | `Space` | Sustain pedal (catches held notes and keeps released ones ringing) |
 | `Enter` | Toggle record on/off |
 | `↑` / `↓` | Pitch wheel: bend up or down while held, spring back on release |
-| `1`–`5` | Octave −2, −1, 0, +1, +2 |
+| `1`–`4` | Octave −2, −1, 0, +1 |
 
 ### Pitch wheel
 
@@ -168,7 +168,7 @@ Click the **▶** tab on the right edge of the keyboard to open the settings pan
 
 | Control | What it does |
 |---------|-------------|
-| **Octave (-2 – +2)** | Shift the entire keyboard up or down by octave |
+| **Octave (-2 – +1)** | Shift the entire keyboard up or down by octave |
 | **Loop IN / OUT** | Drag the handles to set which region of the meow the granular engine draws grains from. IN = where the M recording fades out; OUT = where the W tail begins. |
 | **XFADE** | Crossfade duration between M→EO and EO→W transitions (0 – 100 ms) |
 | **GRAIN** | Length of each individual grain (20 – 200 ms). Shorter = grainier texture; longer = smoother but more repetitive. |

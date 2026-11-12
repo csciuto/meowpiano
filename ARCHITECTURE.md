@@ -16,7 +16,7 @@ app code (`js/`) and 1,100 of tests.
 | Libraries | None at runtime |
 
 Dev only: Vitest (unit tests), Playwright + axe-core (browser and accessibility tests), sharp (writes the
-help page's animated WebP clips). Offline, once: librosa (Python) to make the 73 note samples.
+help page's animated WebP clips). Offline, once: librosa (Python) to make the 61 note samples.
 
 ## Files
 
@@ -26,7 +26,7 @@ css/style.css     all styling
 js/
   main.js         wiring: computer keys, MIDI keyboard hooks, what's lit, startup
   state.js        one shared mutable state object (settings, voices, the take)
-  notes.js        the 25 keys (C4–C6), their base frequencies and computer keys; the 73 samples (C2–C8)
+  notes.js        the 25 keys (C4–C6), their base frequencies and computer keys; the 61 samples (C2–C7)
   keyboard.js     builds the on-screen keys; mouse and touch (glide across keys)
   audio.js        the sound engine: voices, granular sustain, pedal, bends
   controls.js     panels and transport: octave, loop/grain/tuning, pitch wheel, REC/PLAY/seek/OPEN/SAVE/SHARE
@@ -35,7 +35,7 @@ js/
   songtext.js     songs as plain text, written and read (TEXT, OPEN): one line per note, pedal change or wheel move
   vendor/midi-in.js   live MIDI keyboard input (shared module; `npm run vendor` refreshes it)
   dsp.js          loop-window search (tested; not used at runtime)
-sounds/           meow.ogg (source) and notes/*.ogg (one pre-pitched sample per semitone, C2–C8)
+sounds/           meow.ogg (source) and notes/*.ogg (one pre-pitched sample per semitone, C2–C7)
 songs/            canon-in-d.mid, brahms-lullaby.mid (tests and demos; made by scripts/make-*.js)
 scripts/          process_samples.py (makes sounds/notes), make-canon.js, make-lullaby.js,
                   demo-links.js (rewrites help.html's Hear links from songs/)
@@ -67,8 +67,8 @@ events: `on` (note, frequency, loop points, time), `off`, `sustain_on/off`, `pit
 
 ## The sound
 
-There is one recording of a cat (Silas). `scripts/process_samples.py` pitch-shifts it offline into 73 samples
-of equal length, one per semitone from C2 to C8 (phase vocoder, so higher notes don't get shorter). Every
+There is one recording of a cat (Silas). `scripts/process_samples.py` pitch-shifts it offline into 61 samples
+of equal length, one per semitone from C2 to C7 (phase vocoder, so higher notes don't get shorter). Every
 range plays its own samples at normal speed; only the pitch wheel and the tuning slider change the speed. The
 recording's held note is 630 Hz (`SAMPLE_ROOT`, measured), so each key sounds at its name. First it cleans the recording: a 200 Hz
 high-pass for low rumble (8–80 Hz), then spectral subtraction of a steady hum (about 120 Hz with overtones, likely

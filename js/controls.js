@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { NOTES, OCTAVE_LABELS, applyOctaveShift, shownNote } from './notes.js';
+import { NOTES, OCTAVE_LABELS, SHIFTS, applyOctaveShift, shownNote } from './notes.js';
 import {
   applySustainToLiveVoices,
   applyLoopToLiveVoices,
@@ -108,6 +108,7 @@ let _onOctave = () => {};
 export function onOctaveChange(f) { _onOctave = f; }
 
 export function setOctave(shift) {
+  shift = Math.max(SHIFTS[0], Math.min(SHIFTS[SHIFTS.length - 1], shift));
   state.octaveShift = shift;
   if (state.isRec) {
     state.recEvents.push({ type: 'octave', shift, t: performance.now() - state.recStart });
@@ -115,7 +116,7 @@ export function setOctave(shift) {
   applyOctaveShift(shift);
   document.querySelector('.octave-bar').textContent = OCTAVE_LABELS[String(shift)] || '';
   document.querySelectorAll('.key-note[data-note]').forEach(el => { el.textContent = shownNote(el.dataset.note, shift); });
-  [-2, -1, 0, 1, 2].forEach(v => {
+  SHIFTS.forEach(v => {
     const btn = document.getElementById('oct' + v);
     if (!btn) return;
     btn.style.background = (v === shift) ? '#AA88FF' : 'transparent';
@@ -125,7 +126,7 @@ export function setOctave(shift) {
 }
 
 export function initOctaveButtons() {
-  [-2, -1, 0, 1, 2].forEach(v => {
+  SHIFTS.forEach(v => {
     const btn = document.getElementById('oct' + v);
     if (btn) btn.addEventListener('click', () => setOctave(v));
   });

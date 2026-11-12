@@ -211,3 +211,11 @@ describe('song in a link', () => {
     await expect(readSong('not-a-song')).rejects.toThrow();
   });
 });
+
+describe('links made when there was a +2 octave', () => {
+  it('play their top-range notes an octave down', () => {
+    const ev = [{ type: 'on', note: 'A4', freq: 440 * 4, sus: false, ls: 0.26, le: 0.46, t: 0 }, { type: 'off', note: 'A4', t: 500 }];
+    const back = unpack(pack(ev, 600, { loopStart: 0.26, loopEnd: 0.46 })).events.find(e => e.type === 'on');
+    expect(back.freq).toBeCloseTo(880, 3);
+  });
+});

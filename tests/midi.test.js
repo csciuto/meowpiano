@@ -164,3 +164,15 @@ describe("the Brahms' Lullaby demo file (songs/brahms-lullaby.mid, made by scrip
     expect(back.map(e => Math.round(e.vel * 127))).toEqual(notes.map(e => Math.round(e.vel * 127)));
   });
 });
+
+describe('the top of the range is C7', () => {
+  it('notes above C7 move down into the range, never to the old +2 octave', () => {
+    for (const m of [97, 100, 108, 120]) {
+      const k = keyFor(m);
+      expect(k.oct).toBeLessThanOrEqual(1);
+      expect(midiNote(BASE_FREQS[k.note] * 2 ** k.oct) % 12).toBe(m % 12);
+      expect(midiNote(BASE_FREQS[k.note] * 2 ** k.oct)).toBeLessThanOrEqual(96);
+    }
+    expect(keyFor(96)).toEqual({ note: 'C6', oct: 1 });
+  });
+});

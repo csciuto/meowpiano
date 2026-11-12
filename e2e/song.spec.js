@@ -29,9 +29,11 @@ test('↑ bends up while held and springs back on release; a recording keeps one
   expect(await st(page, 'state.recEvents.filter(e => e.type === "pitch" && e.bend === 0).length')).toBe(0);
 });
 
-test('1–5 pick the octave @desktop', async ({ page }) => {
+test('1–4 pick the octave; there is no 5 @desktop', async ({ page }) => {
+  await page.keyboard.press('4');
+  expect(await st(page, 'state.octaveShift')).toBe(1);
   await page.keyboard.press('5');
-  expect(await st(page, 'state.octaveShift')).toBe(2);
+  expect(await st(page, 'state.octaveShift')).toBe(1);
   await page.keyboard.press('1');
   expect(await st(page, 'state.octaveShift')).toBe(-2);
   await page.keyboard.press('3');

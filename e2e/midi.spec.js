@@ -109,7 +109,7 @@ test('a MIDI keyboard plays, bends, holds the pedal and records @desktop', async
   await expect(page.locator('#btnMidiIn')).toHaveAttribute('aria-pressed', 'true');
   const send = bytes => page.evaluate(b => window.__fakeInput.onmidimessage({ data: b }), bytes);
   await page.keyboard.press('Enter');                         // record
-  await page.keyboard.press('5');                             // app octave +2: MIDI notes ignore it
+  await page.keyboard.press('4');                             // app octave +1: MIDI notes ignore it
   for (const m of [48, 60, 64, 67, 72]) await send([0x90, m, 100]);   // C3 + a C major chord with two Cs
   await expect.poll(() => page.evaluate(async () => { const { state } = await import('/js/state.js'); return Object.keys(state.liveVoices).length; })).toBe(5);
   await send([0xb0, 64, 127]);                                // pedal down

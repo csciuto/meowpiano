@@ -26,10 +26,14 @@ export const NOTES = [
   {note:"C6",  freq:1046.5, key:"v",  type:"white", wi:14 },
 ];
 
-// One recording per semitone, C2 to C8, all the same length. A pitch plays the nearest one, so no note
+// The octave ranges (keys 1-4): C2-C4 up to C5-C7. Above C7 a meow is a squeak.
+export const SHIFTS = [-2, -1, 0, 1];
+export const TOP_MIDI = 96;   // C7
+
+// One recording per semitone, C2 to C7, all the same length. A pitch plays the nearest one, so no note
 // is sped up or slowed down by more than the pitch wheel and tuning ask for.
 const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-export const SAMPLES = Array.from({ length: 73 }, (_, i) => {
+export const SAMPLES = Array.from({ length: TOP_MIDI - 36 + 1 }, (_, i) => {
   const m = 36 + i;
   return { note: NAMES[m % 12] + (Math.floor(m / 12) - 1), freq: 440 * 2 ** ((m - 69) / 12) };
 });
@@ -52,7 +56,7 @@ export function applyOctaveShift(shift) {
 
 // The line above the keys: the same shape for every range.
 export const octaveLabel = shift => `C${4 + shift} <------- C${5 + shift} -------> C${6 + shift}`;
-export const OCTAVE_LABELS = Object.fromEntries([-2, -1, 0, 1, 2].map(s => [String(s), octaveLabel(s)]));
+export const OCTAVE_LABELS = Object.fromEntries(SHIFTS.map(s => [String(s), octaveLabel(s)]));
 
 // A key's printed name in the current range: "C#4" two ranges up is "C#6".
 export const shownNote = (note, shift) => note.replace(/-?\d+$/, d => String(+d + shift));

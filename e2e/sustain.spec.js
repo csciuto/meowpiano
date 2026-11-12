@@ -42,10 +42,10 @@ test('pedal release leaves notes whose keys are still down', async ({ page }) =>
   expect(await liveNotes(page)).toEqual([]);
 });
 
-test('the top range plays its own samples at normal speed, not the middle ones four times faster', async ({ page }) => {
+test('the top range plays its own samples at normal speed, not the middle ones twice as fast', async ({ page }) => {
   await page.goto('/');
   await page.locator('#keyboard').click({ position: { x: 5, y: 5 } }).catch(() => {});
-  await page.keyboard.press('5');
+  await page.keyboard.press('4');
   await page.keyboard.down('a');
   const read = () => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
@@ -55,7 +55,7 @@ test('the top range plays its own samples at normal speed, not the middle ones f
   await expect.poll(read).toBeTruthy();
   const v = await read();
   await page.keyboard.up('a');
-  expect(v.freq).toBe(1047);                 // C6
+  expect(v.freq).toBe(523);                  // C5
   expect(v.rate).toBeCloseTo(1, 2);
   expect(v.length).toBeCloseTo(0.78, 1);
 });

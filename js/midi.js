@@ -9,7 +9,7 @@
  * bend (±2 semitones, the MIDI default). Loop points, grain settings and tuning ride along as text events
  * starting "meowpiano", so a file saved here opens with the same sound and name.
  */
-import { NOTES, BASE_FREQS } from './notes.js';
+import { NOTES, BASE_FREQS, SHIFTS, TOP_MIDI } from './notes.js';
 import { playable, TICK } from './song.js';
 
 const TAG = 'meowpiano';
@@ -98,8 +98,8 @@ function readSettings(text, into) {
 /** The piano key and octave for MIDI note `m`, avoiding note names already sounding. */
 export function keyFor(m, sounding = new Set()) {
   while (m < 36) m += 12;
-  while (m > 108) m -= 12;
-  const options = [0, 1, -1, 2, -2]
+  while (m > TOP_MIDI) m -= 12;
+  const options = [0, 1, -1, 2, -2].filter(oct => SHIFTS.includes(oct))
     .map(oct => ({ oct, i: m - 60 - 12 * oct }))
     .filter(o => o.i >= 0 && o.i < NOTES.length)
     .map(o => ({ note: NOTES[o.i].note, oct: o.oct }));

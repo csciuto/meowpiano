@@ -18,19 +18,20 @@ What it does
    597 Hz overtone sits on the meow's own pitch (600-650 Hz).
 5. Bakes a short crossfade at the loop boundary so the looping tail blends
    seamlessly into the loop head — no more meowowow.
-6. Shifts the pitch to generate one OGG per note, keeping the voice's resonances
-   (formants) in place so high keys don't turn shrill (see shift_keeping_formants).
-   Duration is preserved, so every note plays for the same length of time.
+6. Uses librosa's phase-vocoder pitch_shift to generate one OGG per note.
+   Because the phase vocoder preserves duration, every note plays for exactly
+   the same length of time regardless of pitch.
 7. Writes sounds/notes/{name}.ogg  (# → s, e.g. Cs4.ogg).
 8. Prints the detected loop points so you can paste them into state.js.
 
 Usage
 -----
-    pip install librosa soundfile numpy scipy praat-parselmouth
+    pip install librosa soundfile numpy scipy
     python scripts/process_samples.py
 
-    # the older phase-vocoder shifter (formants move with the pitch), into a folder to compare by ear:
-    python scripts/process_samples.py --vocoder --out /tmp/notes-vocoder
+    # the other pitch shifter (see shift_keeping_formants), into a folder of its own to compare by ear:
+    pip install praat-parselmouth
+    python scripts/process_samples.py --formant --out /tmp/notes-formant
 
 After running, update js/state.js with the printed loopStart / loopEnd values.
 """
@@ -184,7 +185,7 @@ def main():
     root_dir   = os.path.join(script_dir, '..')
     src_path   = os.path.join(root_dir, 'sounds', 'meow.ogg')
     out_dir    = os.path.join(root_dir, 'sounds', 'notes')
-    formant    = '--vocoder' not in sys.argv
+    formant    = '--formant' in sys.argv
     if '--out' in sys.argv:
         out_dir = sys.argv[sys.argv.index('--out') + 1]
     os.makedirs(out_dir, exist_ok=True)

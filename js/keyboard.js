@@ -26,7 +26,7 @@ export function initKeyboard(onNoteOn, onNoteOff) {
 
     const lbl = n.key === '\\' ? '\\' : n.key === "'" ? "'" : n.key.toUpperCase();
     el.innerHTML =
-      `<div class="key-note">${n.note}</div>` +
+      `<div class="key-note" data-note="${n.note}">${n.note}</div>` +
       `<div class="key-label">${lbl}</div>`;
 
     // Mouse/pen handlers — touch is handled at the container level below

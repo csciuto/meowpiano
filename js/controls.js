@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { NOTES, OCTAVE_LABELS, applyOctaveShift } from './notes.js';
+import { NOTES, OCTAVE_LABELS, applyOctaveShift, shownNote } from './notes.js';
 import {
   applySustainToLiveVoices,
   applyLoopToLiveVoices,
@@ -114,6 +114,7 @@ export function setOctave(shift) {
   }
   applyOctaveShift(shift);
   document.querySelector('.octave-bar').textContent = OCTAVE_LABELS[String(shift)] || '';
+  document.querySelectorAll('.key-note[data-note]').forEach(el => { el.textContent = shownNote(el.dataset.note, shift); });
   [-2, -1, 0, 1, 2].forEach(v => {
     const btn = document.getElementById('oct' + v);
     if (!btn) return;

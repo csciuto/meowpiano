@@ -32,3 +32,15 @@ test('footer shows the version', async ({ page }) => {
   await page.goto(APP);
   await expect(page.locator('.version')).toHaveText(/^(dev|v1\.\d+)$/);
 });
+
+test('a number key moves the range label and the key names together', async ({ page }) => {
+  await page.goto(APP);
+  await expect(page.locator(READY).first()).toBeVisible();
+  await page.keyboard.press('2');
+  await expect(page.locator('.octave-bar')).toHaveText('C3 <------- C4 -------> C5');
+  await expect(page.locator('.key-note').first()).toHaveText('C3');
+  await expect(page.locator('.key-note').last()).toHaveText('C5');
+  await page.keyboard.press('3');
+  await expect(page.locator('.octave-bar')).toHaveText('C4 <------- C5 -------> C6');
+  await expect(page.locator('.key-note').first()).toHaveText('C4');
+});

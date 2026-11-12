@@ -40,10 +40,9 @@ export function applyOctaveShift(shift) {
   NOTES.forEach(n => { n.freq = BASE_FREQS[n.note] * mult; });
 }
 
-export const OCTAVE_LABELS = {
-  "-2": "C2 <-- C3 --> C4",
-  "-1": "C3 <-- C4 --> C5",
-  "0":  "C4 <------- C5 --------> C6",
-  "1":  "C5 <-- C6 --> C7",
-  "2":  "C6 <-- C7 --> C8",
-};
+// The line above the keys: the same shape for every range.
+export const octaveLabel = shift => `C${4 + shift} <------- C${5 + shift} -------> C${6 + shift}`;
+export const OCTAVE_LABELS = Object.fromEntries([-2, -1, 0, 1, 2].map(s => [String(s), octaveLabel(s)]));
+
+// A key's printed name in the current range: "C#4" two ranges up is "C#6".
+export const shownNote = (note, shift) => note.replace(/-?\d+$/, d => String(+d + shift));

@@ -72,3 +72,20 @@ describe('applyOctaveShift', () => {
     applyOctaveShift(0);
   });
 });
+
+describe('range labels', () => {
+  it('the line above the keys has the same shape in every range', async () => {
+    const { OCTAVE_LABELS } = await import('../js/notes.js');
+    expect(OCTAVE_LABELS['0']).toBe('C4 <------- C5 -------> C6');
+    expect(OCTAVE_LABELS['-1']).toBe('C3 <------- C4 -------> C5');
+    const shapes = new Set(Object.values(OCTAVE_LABELS).map(l => l.replace(/\d/g, 'n')));
+    expect(shapes.size).toBe(1);
+  });
+
+  it('key names follow the range', async () => {
+    const { shownNote } = await import('../js/notes.js');
+    expect(shownNote('C4', 0)).toBe('C4');
+    expect(shownNote('C#4', 2)).toBe('C#6');
+    expect(shownNote('C6', -2)).toBe('C4');
+  });
+});

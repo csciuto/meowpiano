@@ -53,7 +53,7 @@ except ImportError:
 
 HIGHPASS_HZ = 200.0  # below the meow (~600 Hz), above the rumble (8-80 Hz)
 
-SAMPLE_ROOT = 440.0  # Hz — the pitch the source recording is treated as
+SAMPLE_ROOT = 630.0  # Hz: the measured pitch of the held part of the meow (0.26-0.46 s), so keys sound at their names
 
 NOTES = [
     ("C4",  261.63), ("Cs4", 277.18), ("D4",  293.66), ("Ds4", 311.13),

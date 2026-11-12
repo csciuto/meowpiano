@@ -52,7 +52,7 @@ These tell the granular engine which region of the recording to loop from.
 ### Swapping in a different animal (or person)
 
 1. Replace `sounds/meow.ogg` with your new mono OGG recording.
-2. Edit `SAMPLE_ROOT` in `scripts/process_samples.py` to the approximate pitch of your recording in Hz (default: 440 Hz = A4).
+2. Edit `SAMPLE_ROOT` in `scripts/process_samples.py` to the pitch of the held part of your recording in Hz (630 for the meow here, measured), so each key sounds at its name.
 3. Run the script. It re-pitches all 25 notes relative to that root.
 4. Paste the printed `loopStart` / `loopEnd` into `js/state.js`.
 5. Optionally fine-tune IN/OUT in the browser using the settings panel.
